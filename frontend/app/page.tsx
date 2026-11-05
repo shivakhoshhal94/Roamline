@@ -60,8 +60,8 @@ export default function Home() {
           />
         </div>
         <p className="foundation-note">
-          A journey in the making. Discovery and planning workflows are not
-          available yet.
+          Start with your travel preferences. Destination recommendations and
+          itinerary planning are still to come.
         </p>
       </section>
     </main>

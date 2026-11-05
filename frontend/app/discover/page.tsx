@@ -1,10 +1,9 @@
-import { WorkflowShell } from "@/components/workflow-shell";
+import type { Metadata } from "next";
+import { TravelerProfileForm } from "@/components/traveler-profile-form";
+
+export const metadata: Metadata = {
+  title: "Your travel preferences | Roamline",
+};
 export default function Discover() {
-  return (
-    <WorkflowShell
-      label="Discover"
-      title="Where will curiosity take you?"
-      description="A future space to find destinations around your dates, interests, and travel preferences."
-    />
-  );
+  return <TravelerProfileForm />;
 }

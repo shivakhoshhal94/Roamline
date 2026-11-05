@@ -6,7 +6,8 @@
     "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
     "start": "next start --hostname 0.0.0.0",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "node --experimental-strip-types --test tests/*.test.ts"
   },
   "dependencies": {
     "next": "16.4.5",
@@ -23,5 +24,6 @@
   },
   "engines": {
     "node": ">=24"
-  }
+  },
+  "type": "module"
 }

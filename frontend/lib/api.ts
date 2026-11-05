@@ -1,3 +1,9 @@
+import type {
+  TravelerProfile,
+  ValidatedTravelerProfile,
+  FieldErrors,
+} from "./traveler-profile.ts";
+
 export type HealthResponse = { status: "ok" };
 export type ReadyResponse = { status: "ready" };
 
@@ -25,7 +31,77 @@ async function getStatus<T extends "ok" | "ready">(
   return { status: expected };
 }
 
+export class ProfileValidationError extends Error {
+  readonly fields: FieldErrors;
+  constructor(fields: FieldErrors) {
+    super("Please check your travel preferences.");
+    this.name = "ProfileValidationError";
+    this.fields = fields;
+  }
+}
+
+async function validateTravelerProfile(
+  profile: TravelerProfile,
+): Promise<ValidatedTravelerProfile> {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (!baseUrl)
+    throw new Error(
+      "The travel preference service is not configured. Please try again later.",
+    );
+  let response: Response;
+  try {
+    response = await fetch(
+      `${baseUrl.replace(/\/$/, "")}/api/v1/traveler-profile/validate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profile),
+        signal: AbortSignal.timeout(10000),
+        cache: "no-store",
+      },
+    );
+  } catch {
+    throw new Error(
+      "We could not reach the preference service. Your entries are still here; please try again.",
+    );
+  }
+  if (response.status === 422) {
+    const data = await response.json();
+    const fields: FieldErrors = {};
+    if (Array.isArray(data.detail)) {
+      for (const issue of data.detail) {
+        const path = Array.isArray(issue.loc)
+          ? issue.loc.slice(1).join(".")
+          : "form";
+        const field =
+          path === "travel_context"
+            ? "travel_context.end_date"
+            : path.startsWith("interests")
+              ? "interests"
+              : path === "accessibility"
+                ? "accessibility.additional_requirements"
+                : path || "form";
+        fields[field] =
+          typeof issue.msg === "string"
+            ? issue.msg.replace(/^Value error, /, "")
+            : "Please check this value.";
+      }
+    }
+    throw new ProfileValidationError(
+      Object.keys(fields).length
+        ? fields
+        : { form: "Please check your preferences." },
+    );
+  }
+  if (!response.ok)
+    throw new Error(
+      "The preference service is temporarily unavailable. Please try again.",
+    );
+  return response.json() as Promise<ValidatedTravelerProfile>;
+}
+
 export const api = {
+  validateTravelerProfile,
   health: (): Promise<HealthResponse> => getStatus("/health", "ok"),
   ready: (): Promise<ReadyResponse> => getStatus("/ready", "ready"),
 };

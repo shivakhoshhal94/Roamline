@@ -68,11 +68,11 @@ def test_cors_policy():
 
 
 def test_profile_is_optional_and_validated():
-    assert TravelerProfile().interests == []
+    assert TravelerProfile(travel_context={"duration_days": 7}).interests == []
     with pytest.raises(ValidationError):
-        TravelerProfile(activity_level="extreme")
+        TravelerProfile(travel_context={"duration_days": 7}, activity_level="extreme")
     with pytest.raises(ValidationError):
-        TravelerProfile(diagnosis="not a travel preference")
+        TravelerProfile(travel_context={"duration_days": 7}, diagnosis="not a travel preference")
 
 
 @pytest.mark.skipif(not os.getenv("TEST_DATABASE_URL"), reason="Set TEST_DATABASE_URL for PostgreSQL integration")
