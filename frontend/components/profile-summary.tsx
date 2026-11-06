@@ -1,3 +1,4 @@
+import { DestinationRecommendations } from "./destination-recommendations";
 import type { ValidatedTravelerProfile } from "@/lib/traveler-profile";
 import {
   comforts,
@@ -40,8 +41,8 @@ export function ProfileSummary({
         Your travel preferences are ready.
       </h1>
       <p className="subtitle">
-        Validated and shaped around you. This profile will support both
-        discovery and trip planning.
+        Validated and shaped around you. Explore destination matches from your
+        interests; trip planning will follow.
       </p>
       <div className="summary-grid">
         <section>
@@ -124,12 +125,13 @@ export function ProfileSummary({
       </div>
       <p className="privacy-note">
         This profile is not saved. Your entries stay in this page until you
-        leave or refresh. Destination recommendations and itineraries are not
-        available yet.
+        leave or refresh. Your profile is sent for matching only when you
+        request destination matches. Itinerary planning is not available yet.
       </p>
       <button className="primary-button" type="button" onClick={onEdit}>
         Edit preferences
       </button>
+      <DestinationRecommendations profile={profile} onEdit={onEdit} />
     </section>
   );
 }

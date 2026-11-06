@@ -1,10 +1,11 @@
-"""Migration plumbing only. No domain tables are required yet."""
+"""Explicit catalog and enrichment migrations; no automatic schema creation."""
 from alembic import context
 from app.core.config import Settings
+from app.db.models import Base
 from app.db.connection import create_db_engine
 
 config = Settings()
-target_metadata = None
+target_metadata = Base.metadata
 
 if context.is_offline_mode():
     context.configure(url=str(config.database_url), target_metadata=target_metadata,

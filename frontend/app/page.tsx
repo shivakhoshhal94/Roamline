@@ -60,8 +60,8 @@ export default function Home() {
           />
         </div>
         <p className="foundation-note">
-          Start with your travel preferences. Destination recommendations and
-          itinerary planning are still to come.
+          Start with your preferences, then explore explainable destination
+          matches. Itinerary planning is still to come.
         </p>
       </section>
     </main>

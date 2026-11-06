@@ -1,3 +1,4 @@
+import type { DestinationRecommendations } from "./recommendations.ts";
 import type {
   TravelerProfile,
   ValidatedTravelerProfile,
@@ -100,7 +101,43 @@ async function validateTravelerProfile(
   return response.json() as Promise<ValidatedTravelerProfile>;
 }
 
+async function recommendDestinations(
+  profile: TravelerProfile,
+  limit = 5,
+): Promise<DestinationRecommendations> {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (!baseUrl)
+    throw new Error(
+      "The destination service is not configured. Please try again later.",
+    );
+  let response: Response;
+  try {
+    response = await fetch(
+      `${baseUrl.replace(/\/$/, "")}/api/v1/recommendations/destinations`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile, limit }),
+        cache: "no-store",
+        signal: AbortSignal.timeout(10000),
+      },
+    );
+  } catch {
+    throw new Error(
+      "We could not reach the destination service. Please try again.",
+    );
+  }
+  if (response.status === 422)
+    throw new Error("Please check your preferences and try again.");
+  if (!response.ok)
+    throw new Error(
+      "Destination data is temporarily unavailable. Please try again later.",
+    );
+  return response.json() as Promise<DestinationRecommendations>;
+}
+
 export const api = {
+  recommendDestinations,
   validateTravelerProfile,
   health: (): Promise<HealthResponse> => getStatus("/health", "ok"),
   ready: (): Promise<ReadyResponse> => getStatus("/ready", "ready"),
