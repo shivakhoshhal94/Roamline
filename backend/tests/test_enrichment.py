@@ -384,3 +384,15 @@ def test_postgres_category_transactions_resume_and_atomic_publication(city_facto
         with engine.begin() as connection:
             connection.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
         engine.dispose()
+
+
+def test_berlin_resume_skips_persisted_building_category(database, city_factory):
+    with database.factory.begin() as session:
+        session.add(city_factory(2950159, name="Berlin", ascii_name="Berlin"))
+    first = FakeProvider(fail_on=3)  # geocoding, building success, bridge failure
+    assert asyncio.run(enrich_candidates(database.factory, [2950159], first))["incomplete"] == [2950159]
+    second = FakeProvider()
+    assert asyncio.run(enrich_candidates(database.factory, [2950159], second))["refreshed"] == [2950159]
+    assert second.calls == 21
+    assert second.categories == list(CATEGORY_KEYS[1:])
+    assert "tourism.sights.building" not in second.categories

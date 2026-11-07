@@ -107,7 +107,7 @@ def main():
                     raise ProviderError("missing_api_key")
             async def run():
                 async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(retries=0)) as client:
-                    provider = GeoapifyProvider(client, settings.geoapify_api_key.get_secret_value(), settings.geoapify_min_interval_seconds, timeout=settings.geoapify_timeout, max_requests=args.max_requests, max_credits=args.max_credits)
+                    provider = GeoapifyProvider(client, settings.geoapify_api_key.get_secret_value(), settings.geoapify_min_interval_seconds, timeout=settings.geoapify_timeout, places_timeout=settings.geoapify_places_timeout, max_requests=args.max_requests, max_credits=args.max_credits)
                     return await enrich_candidates(factory, identifiers, provider, args.refresh, stale_after_days=settings.feature_stale_after_days, place_resolution_stale_after_days=settings.place_resolution_stale_after_days, lease_seconds=settings.enrichment_lease_seconds)
             report = asyncio.run(run())
             print(json.dumps(report))

@@ -17,7 +17,7 @@ def run_provider(handler, action, settings=None):
     settings = settings or Settings(_env_file=None, database_url="postgresql+psycopg://test:test@localhost/test")
     async def run():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            return await action(GeoapifyProvider(client, "unit-test-key", min_interval=0, timeout=settings.geoapify_timeout))
+            return await action(GeoapifyProvider(client, "unit-test-key", min_interval=0, timeout=settings.geoapify_timeout, places_timeout=settings.geoapify_places_timeout))
     return asyncio.run(run())
 
 
@@ -138,7 +138,7 @@ def test_environment_timeouts_reach_actual_httpx_request(monkeypatch):
         monkeypatch.setenv(f"GEOAPIFY_{part}_TIMEOUT_SECONDS", str(value))
     settings = Settings(_env_file=None, database_url="postgresql+psycopg://test:test@localhost/test")
     def handle(request):
-        assert request.extensions["timeout"] == {key.lower(): float(value) for key, value in values.items()}
+        assert request.extensions["timeout"] == {**{key.lower(): float(value) for key, value in values.items()}, "read": 30.0}
         return httpx.Response(200, json={"features": []})
     result = run_provider(handle, lambda provider: provider.places("city", "beach"), settings)
     assert result.count == 0
@@ -275,3 +275,48 @@ def test_city_name_normalization_is_preserved(city_factory):
     result = run_provider(lambda request: httpx.Response(200, json={"features": [geo_feature(name="CITY-1", city="CITY-1")]}),
         lambda provider: provider.resolve_city(city_factory()))
     assert result.place_id == "city-boundary-1"
+
+
+def test_places_read_timeout_30_and_geocoding_unchanged(monkeypatch, city_factory):
+    for part in ["CONNECT", "READ", "WRITE", "POOL", "PLACES_READ"]:
+        monkeypatch.delenv(f"GEOAPIFY_{part}_TIMEOUT_SECONDS", raising=False)
+    settings = Settings(_env_file=None, database_url="postgresql+psycopg://test:test@localhost/test")
+    seen = []
+    def handler(request):
+        seen.append(request.url.path)
+        expected = {"connect": 15.0, "read": 30.0 if request.url.path == "/v2/places" else 15.0, "write": 5.0, "pool": 5.0}
+        assert request.extensions["timeout"] == expected
+        return httpx.Response(200, json={"features": [geo_feature()] if request.url.path == "/v1/geocode/search" else []})
+    async def action(provider):
+        resolution = await provider.resolve_city(city_factory())
+        await provider.places(resolution.place_id, "beach")
+    run_provider(handler, action, settings)
+    assert seen == ["/v1/geocode/search", "/v2/places"]
+
+
+def test_places_read_timeout_configurable_without_changing_other_parts(monkeypatch):
+    monkeypatch.setenv("GEOAPIFY_PLACES_READ_TIMEOUT_SECONDS", "42")
+    monkeypatch.setenv("GEOAPIFY_READ_TIMEOUT_SECONDS", "19")
+    settings = Settings(_env_file=None, database_url="postgresql+psycopg://test:test@localhost/test")
+    assert settings.geoapify_timeout.read == 19
+    assert settings.geoapify_places_timeout.read == 42
+    assert settings.geoapify_places_timeout.connect == settings.geoapify_timeout.connect
+    assert settings.geoapify_places_timeout.write == settings.geoapify_timeout.write
+    assert settings.geoapify_places_timeout.pool == settings.geoapify_timeout.pool
+
+
+@pytest.mark.parametrize("value", [0, -1, float("inf"), float("nan"), 121])
+def test_places_timeout_invalid_values_rejected(value):
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, database_url="postgresql+psycopg://test:test@localhost/test", geoapify_places_read_timeout_seconds=value)
+
+
+def test_places_30_second_timeout_failure_is_not_retried():
+    calls = []
+    def handler(request):
+        calls.append(request)
+        assert request.extensions["timeout"]["read"] == 30
+        raise httpx.ReadTimeout("", request=request)
+    with pytest.raises(ProviderError, match="provider_unavailable"):
+        run_provider(handler, lambda provider: provider.places("city", "beach"))
+    assert len(calls) == 1

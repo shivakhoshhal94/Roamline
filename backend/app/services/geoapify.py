@@ -143,7 +143,7 @@ def identity_match(city: Destination, properties: dict) -> bool:
 
 
 class GeoapifyProvider:
-    def __init__(self, client: httpx.AsyncClient, api_key: str, min_interval: float = 1.0, *, timeout: httpx.Timeout, max_requests: int = 23, max_credits: int | None = None):
+    def __init__(self, client: httpx.AsyncClient, api_key: str, min_interval: float = 1.0, *, timeout: httpx.Timeout, places_timeout: httpx.Timeout | None = None, max_requests: int = 23, max_credits: int | None = None):
         if not api_key.strip():
             raise ProviderError("missing_api_key")
         if isinstance(max_requests, bool) or not isinstance(max_requests, int) or max_requests < 1:
@@ -155,6 +155,7 @@ class GeoapifyProvider:
         self.max_requests = max_requests
         self.request_count = 0
         self.timeout = timeout
+        self.places_timeout = places_timeout if places_timeout is not None else timeout
         self.client = client
         self._api_key = api_key
         self.min_interval = min_interval
@@ -179,7 +180,7 @@ class GeoapifyProvider:
             await asyncio.sleep(wait)
         self._last_request = time.monotonic()
         try:
-            response = await self.client.get("https://api.geoapify.com" + path, params={**parameters, "apiKey": self._api_key}, timeout=self.timeout)
+            response = await self.client.get("https://api.geoapify.com" + path, params={**parameters, "apiKey": self._api_key}, timeout=self.places_timeout if path == "/v2/places" else self.timeout)
         except httpx.RequestError as error:
             logger.warning(
                 "Geoapify transport failure (%s): %s",

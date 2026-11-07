@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     geoapify_min_interval_seconds: float = Field(default=1.0, ge=0.2, le=60)
     geoapify_connect_timeout_seconds: float = Field(default=15.0, gt=0, le=120)
     geoapify_read_timeout_seconds: float = Field(default=15.0, gt=0, le=120)
+    geoapify_places_read_timeout_seconds: float = Field(default=30.0, gt=0, le=120)
     geoapify_write_timeout_seconds: float = Field(default=5.0, gt=0, le=120)
     geoapify_pool_timeout_seconds: float = Field(default=5.0, gt=0, le=120)
     candidate_min_population: int = Field(default=100_000, ge=1)
@@ -29,6 +30,10 @@ class Settings(BaseSettings):
             write=self.geoapify_write_timeout_seconds,
             pool=self.geoapify_pool_timeout_seconds,
         )
+
+    @property
+    def geoapify_places_timeout(self) -> httpx.Timeout:
+        return httpx.Timeout(**{**self.geoapify_timeout.as_dict(), "read": self.geoapify_places_read_timeout_seconds})
 
     @field_validator("database_url")
     @classmethod
