@@ -142,49 +142,8 @@ def identity_match(city: Destination, properties: dict) -> bool:
         return False
 
 
-def valid_bbox(value):
-    if not isinstance(value, (list, tuple)) or len(value) != 4:
-        return None
-    if any(isinstance(number, bool) or not isinstance(number, (int, float)) or not math.isfinite(number) for number in value):
-        return None
-    west, south, east, north = value
-    return list(value) if -180 <= west < east <= 180 and -90 <= south < north <= 90 else None
-
-
-def geometry_bbox(feature):
-    geometry = feature.get("geometry", {})
-    if not isinstance(geometry, dict) or geometry.get("type") not in {"Polygon", "MultiPolygon"}:
-        return None
-    coordinates = geometry.get("coordinates")
-    polygons = [coordinates] if geometry["type"] == "Polygon" else coordinates
-    points = []
-    try:
-        for polygon in polygons:
-            for ring in polygon:
-                for position in ring:
-                    if not isinstance(position, list) or len(position) < 2:
-                        return None
-                    lon, lat = position[:2]
-                    if (isinstance(lon, bool) or isinstance(lat, bool)
-                            or not isinstance(lon, (int, float)) or not isinstance(lat, (int, float))
-                            or not math.isfinite(lon) or not math.isfinite(lat)
-                            or not -180 <= lon <= 180 or not -90 <= lat <= 90):
-                        return None
-                    points.append((lon, lat))
-    except TypeError:
-        return None
-    if not points:
-        return None
-    return valid_bbox([min(p[0] for p in points), min(p[1] for p in points), max(p[0] for p in points), max(p[1] for p in points)])
-
-
-def matching_extents(city_bbox, boundary_bbox):
-    # The provider's geometry_1000 endpoint documents 1 km accuracy.
-    return all(distance_km(city_bbox[i + 1], city_bbox[i], boundary_bbox[i + 1], boundary_bbox[i]) <= 1 for i in (0, 2))
-
-
 class GeoapifyProvider:
-    def __init__(self, client: httpx.AsyncClient, api_key: str, min_interval: float = 1.0, *, timeout: httpx.Timeout, max_requests: int = 25, max_credits: int | None = None):
+    def __init__(self, client: httpx.AsyncClient, api_key: str, min_interval: float = 1.0, *, timeout: httpx.Timeout, max_requests: int = 23, max_credits: int | None = None):
         if not api_key.strip():
             raise ProviderError("missing_api_key")
         if isinstance(max_requests, bool) or not isinstance(max_requests, int) or max_requests < 1:
@@ -248,71 +207,26 @@ class GeoapifyProvider:
         data = await self._get("/v1/geocode/search", {
             "text": f"{city.name}, {city.country_code}", "type": "city",
             "filter": f"countrycode:{city.country_code.lower()}",
-            "bias": f"proximity:{city.longitude},{city.latitude}", "limit": 5, "format": "geojson",
+            "bias": f"proximity:{city.longitude},{city.latitude}", "limit": 5, "lang": "en", "format": "geojson",
         })
         matches = {}
         for feature in features_from(data):
             props = feature["properties"]
             place_id = props.get("place_id")
-            if props.get("result_type") == "city" and isinstance(place_id, str) and 2 <= len(place_id) <= 2048 and identity_match(city, props):
+            if (props.get("result_type") == "city" and isinstance(place_id, str) and 2 <= len(place_id) <= 2048 and place_id.strip() == place_id
+                    and not any(char.isspace() for char in place_id) and identity_match(city, props)):
                 matches[place_id] = feature
         if len(matches) != 1:
             raise ProviderError("city_identity_unresolved")
         geocoding_id, matched_feature = next(iter(matches.items()))
         matched = matched_feature["properties"]
-        city_extent = valid_bbox(matched_feature.get("bbox"))
-        # A city geocoding point is not proof of a boundary. Confirm a containing
-        # administrative city via the Boundaries API; no circular fallback.
-        boundary_data = await self._get("/v1/boundaries/part-of", {
-            "lat": city.latitude, "lon": city.longitude,
-            "boundaries": "administrative", "geometry": "point",
-        })
-        boundaries = {}
-        for feature in features_from(boundary_data):
-            props = feature["properties"]
-            place_id = props.get("place_id")
-            categories = props.get("categories", [])
-            is_city = props.get("result_type") == "city" or (isinstance(categories, list) and "administrative.city_level" in categories)
-            if (isinstance(place_id, str) and 2 <= len(place_id) <= 2048
-                    and (place_id == geocoding_id or is_city) and identity_match(city, props)):
-                boundaries[place_id] = props
-        extent_evidence = {}
-        if not boundaries and city_extent is not None:
-            names = {normalized_name(city.name), normalized_name(city.ascii_name)} - {""}
-            # City-states can be classified as country parts. Do not accept that
-            # broader type solely by name: require a city/state identity and a
-            # containing polygon whose extent matches the geocoded city.
-            possible = [feature for feature in features_from(boundary_data)
-                        if "administrative.country_part_level" in (feature["properties"].get("categories") or [])
-                        and normalized_name(str(feature["properties"].get("name", ""))) in names
-                        and normalized_name(str(feature["properties"].get("state", ""))) in names
-                        and normalized_name(str(matched.get("state", ""))) in names
-                        and identity_match(city, feature["properties"])]
-            if len(possible) == 1:
-                shapes = await self._get("/v1/boundaries/part-of", {
-                    "lat": city.latitude, "lon": city.longitude,
-                    "boundaries": "administrative", "geometry": "geometry_1000",
-                })
-                for feature in features_from(shapes):
-                    props = feature["properties"]
-                    place_id = props.get("place_id")
-                    extent = geometry_bbox(feature)
-                    if (isinstance(place_id, str) and 2 <= len(place_id) <= 2048
-                            and "administrative.country_part_level" in (props.get("categories") or [])
-                            and normalized_name(str(props.get("name", ""))) in names
-                            and identity_match(city, props) and extent is not None
-                            and matching_extents(city_extent, extent)):
-                        boundaries[place_id] = props
-                        extent_evidence = {"boundary_validation": "city_state_extent", "city_bbox": city_extent, "boundary_bbox": extent}
-        if len(boundaries) != 1:
-            raise ProviderError("city_boundary_unresolved")
-        place_id, boundary = next(iter(boundaries.items()))
-        return CityResolution(place_id, {
+        return CityResolution(geocoding_id, {
+            "resolution_policy": "geocoded-city-v1", "resolved_by": "/v1/geocode/search",
             "geocoding_place_id": geocoding_id, "city": matched.get("city", matched.get("name")),
-            "country_code": city.country_code, "latitude": matched["lat"], "longitude": matched["lon"],
+            "country_code": city.country_code, "result_type": "city",
+            "latitude": matched["lat"], "longitude": matched["lon"],
             "distance_km": round(distance_km(city.latitude, city.longitude, float(matched["lat"]), float(matched["lon"])), 3),
-            "boundary_name": boundary.get("name", boundary.get("city")),
-            "boundary_verified_by": "boundaries/part-of", "filter": "place", **extent_evidence,
+            "filter": "place", "independent_polygon_verification": False,
         })
 
     async def places(self, place_id: str, category: str) -> CategoryEvidence:

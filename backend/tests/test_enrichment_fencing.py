@@ -8,7 +8,7 @@ from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import Session, sessionmaker
 from app.db.models import Base, Destination, DestinationCategoryEvidence, DestinationEnrichment
 from app.services.enrichment import (acquire_worker, release_worker, check_worker, invalidate_destination,
-    save_boundary, save_category, publish_snapshot, enrich_candidates, cached_categories, enrichment_plan)
+    save_place_resolution, save_category, publish_snapshot, enrich_candidates, cached_categories, enrichment_plan)
 from app.services.geoapify import CategoryEvidence, CityResolution, ProviderError
 from app.domain.destination_features import CATEGORY_KEYS
 from test_enrichment import FakeProvider, original_feature
@@ -23,37 +23,37 @@ def initialize(database, city_factory):
         session.add(city_factory())
 
 
-def test_boundary_expiry_reverification_does_not_renew_from_places(database, city_factory):
+def test_place_resolution_expiry_reverification_does_not_renew_from_places(database, city_factory):
     initialize(database, city_factory)
     asyncio.run(enrich_candidates(database.factory, [1], FakeProvider(fail_on=4)))
     with database.factory() as session:
-        original = session.get(Destination, 1).boundary_verified_at
+        original = session.get(Destination, 1).place_resolved_at
     asyncio.run(enrich_candidates(database.factory, [1], FakeProvider()))
     with database.factory() as session:
-        assert session.get(Destination, 1).boundary_verified_at == original
+        assert session.get(Destination, 1).place_resolved_at == original
     with database.factory.begin() as session:
-        session.get(Destination, 1).boundary_verified_at = datetime.now(timezone.utc) - timedelta(days=31)
+        session.get(Destination, 1).place_resolved_at = datetime.now(timezone.utc) - timedelta(days=31)
     provider = FakeProvider()
     assert asyncio.run(enrich_candidates(database.factory, [1], provider))["refreshed"] == [1]
     assert provider.calls == 1  # successful boundary revalidation; categories still fresh
     with database.factory() as session:
-        assert session.get(Destination, 1).boundary_verified_at != original
+        assert session.get(Destination, 1).place_resolved_at != original
 
 
-def test_boundary_change_invalidates_categories_and_failed_refresh_keeps_snapshot(database, city_factory):
+def test_place_resolution_change_invalidates_categories_and_failed_refresh_keeps_snapshot(database, city_factory):
     initialize(database, city_factory)
     asyncio.run(enrich_candidates(database.factory, [1], FakeProvider()))
     with database.factory.begin() as session:
         city = session.get(Destination, 1)
         original = city.enrichment.category_evidence
-        city.boundary_verified_at = datetime.now(timezone.utc) - timedelta(days=31)
+        city.place_resolved_at = datetime.now(timezone.utc) - timedelta(days=31)
     failed = FakeProvider(fail_on=1)
     assert asyncio.run(enrich_candidates(database.factory, [1], failed))["incomplete"] == [1]
     with database.factory() as session:
         assert session.get(Destination, 1).enrichment.category_evidence == original
     class Changed(FakeProvider):
         async def resolve_city(self, city):
-            return CityResolution("new-boundary", {"boundary_verified_by": "mock"})
+            return CityResolution("new-boundary", {"resolution_policy": "geocoded-city-v1"})
     provider = Changed()
     asyncio.run(enrich_candidates(database.factory, [1], provider))
     assert len(provider.categories) == 22
@@ -67,7 +67,7 @@ def test_boundary_change_invalidates_categories_and_failed_refresh_keeps_snapsho
 def test_lease_expiry_recovery_and_stale_writes_rejected(database, city_factory):
     initialize(database, city_factory)
     first = acquire_worker(database.engine, 1)
-    first = save_boundary(database.engine, first, CityResolution("boundary", {"verified": True}))
+    first = save_place_resolution(database.engine, first, CityResolution("boundary", {"resolution_policy": "geocoded-city-v1"}))
     save_category(database.engine, first, evidence(identifier="old"))
     with pytest.raises(ProviderError, match="enrichment_conflict"):
         acquire_worker(database.engine, 1)
@@ -151,7 +151,7 @@ def test_postgres_two_workers_same_category_and_publication_row_lock(postgres_da
         results = list(pool.map(lambda _: acquire(), range(2)))
     assert results.count("enrichment_conflict") == 1
     worker = next(result for result in results if result != "enrichment_conflict")
-    worker = save_boundary(database.engine, worker, CityResolution("boundary", {"verified": True}))
+    worker = save_place_resolution(database.engine, worker, CityResolution("boundary", {"resolution_policy": "geocoded-city-v1"}))
     with database.factory.begin() as session:
         invalidate_destination(session, 1)
     second = acquire_worker(database.engine, 1)
@@ -203,17 +203,17 @@ def test_postgres_import_preserves_all_operational_fields(postgres_database, tmp
         identifier = city.geoname_id
         city.enrichment_generation = 7
         city.category_cache_invalidated_at = datetime.now(timezone.utc)
-        city.boundary_verified_at = datetime.now(timezone.utc)
-        city.boundary_provider = "geoapify"
-        city.boundary_place_id = "verified"
-        city.boundary_evidence = {"verified": True}
-        city.boundary_fingerprint = "f" * 64
-        city.boundary_catalog_fingerprint = "c" * 64
+        city.place_resolved_at = datetime.now(timezone.utc)
+        city.place_resolution_provider = "geoapify"
+        city.resolved_place_id = "verified"
+        city.place_resolution_evidence = {"resolution_policy": "geocoded-city-v1"}
+        city.place_resolution_fingerprint = "f" * 64
+        city.place_resolution_catalog_fingerprint = "c" * 64
         city.enrichment_lease_token = "lease-token"
         city.enrichment_lease_expires_at = datetime.now(timezone.utc) + timedelta(minutes=1)
     with database.factory() as session:
         city = session.get(Destination, identifier)
-        columns = [c.name for c in Destination.__table__.columns if c.name.startswith(("boundary_", "enrichment_", "category_cache_"))]
+        columns = [c.name for c in Destination.__table__.columns if c.name.startswith(("place_", "resolved_", "enrichment_", "category_cache_"))]
         original = {key: getattr(city, key) for key in columns}
     for population in [100000, 200000, 200000]:
         archive(population)
@@ -239,13 +239,13 @@ def test_postgres_no_open_transaction_during_provider_wait(postgres_database, ci
     assert asyncio.run(enrich_candidates(database.factory, [1], CheckingProvider()))["refreshed"] == [1]
 
 
-def test_expired_boundary_during_places_response_is_not_persisted(database, city_factory):
+def test_expired_place_resolution_during_places_response_is_not_persisted(database, city_factory):
     initialize(database, city_factory)
     worker = acquire_worker(database.engine, 1)
-    worker = save_boundary(database.engine, worker, CityResolution("boundary", {"verified": True}))
+    worker = save_place_resolution(database.engine, worker, CityResolution("boundary", {"resolution_policy": "geocoded-city-v1"}))
     with database.factory.begin() as session:
-        session.get(Destination, 1).boundary_verified_at = datetime.now(timezone.utc) - timedelta(days=31)
-    with pytest.raises(ProviderError, match="boundary_expired"):
+        session.get(Destination, 1).place_resolved_at = datetime.now(timezone.utc) - timedelta(days=31)
+    with pytest.raises(ProviderError, match="place_resolution_expired"):
         save_category(database.engine, worker, evidence())
     with database.factory() as session:
         assert session.get(DestinationCategoryEvidence, (1, CATEGORY_KEYS[0])) is None
@@ -264,3 +264,15 @@ def test_enrichment_refuses_to_discard_uncommitted_caller_changes(database, city
         assert city.name == "Pending edit"
         assert session.dirty
     assert provider.calls == 0
+
+
+def test_legacy_boundary_policy_is_not_reused_as_fresh_resolution(database, city_factory):
+    from app.services.enrichment import place_resolution_fresh
+    initialize(database, city_factory)
+    worker = acquire_worker(database.engine, 1)
+    worker = save_place_resolution(database.engine, worker, CityResolution("legacy", {"boundary_verified_by": "boundaries/part-of"}))
+    with database.factory() as session:
+        city = session.get(Destination, 1)
+        assert not place_resolution_fresh(city)
+        assert enrichment_plan(session, city)["identity_lookup_requests"] == 1
+    release_worker(database.engine, worker)

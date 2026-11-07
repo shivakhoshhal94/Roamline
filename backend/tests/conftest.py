@@ -32,7 +32,7 @@ def snapshot_factory():
                 category = categories[index // CATEGORY_RESULT_LIMIT]
                 features_by_category[category].append({"type": "Feature", "properties": {"place_id": f"{name}-{index}", "categories": [category]}})
         evidence = {category: CategoryEvidence(category, tuple(values), fetched_at) for category, values in features_by_category.items()}
-        snapshot = DestinationEnrichment(destination_id=city.geoname_id, provider="geoapify", place_id=f"boundary-{city.geoname_id}", resolution_evidence={"boundary_verified_by": "boundaries/part-of"}, request_strategy=REQUEST_STRATEGY_VERSION, category_evidence={key: item.to_record() for key, item in evidence.items()}, mapping_version=MAPPING_VERSION, normalization_version=NORMALIZATION_VERSION, catalog_fingerprint=catalog_fingerprint(city), fetched_at=fetched_at)
+        snapshot = DestinationEnrichment(destination_id=city.geoname_id, provider="geoapify", place_id=f"boundary-{city.geoname_id}", resolution_evidence={"resolution_policy": "geocoded-city-v1", "resolved_by": "/v1/geocode/search"}, request_strategy=REQUEST_STRATEGY_VERSION, category_evidence={key: item.to_record() for key, item in evidence.items()}, mapping_version=MAPPING_VERSION, normalization_version=NORMALIZATION_VERSION, catalog_fingerprint=catalog_fingerprint(city), fetched_at=fetched_at)
         snapshot.features = []
         for name, definition in FEATURES.items():
             identifiers = {feature["properties"]["place_id"] for category in definition.categories for feature in features_by_category[category]}

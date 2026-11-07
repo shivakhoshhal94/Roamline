@@ -37,11 +37,12 @@ def test_identity_and_real_boundary_filter(city_factory):
     async def action(provider):
         resolution = await provider.resolve_city(city_factory())
         evidence = await provider.places(resolution.place_id, "entertainment.museum")
-        assert resolution.evidence["boundary_verified_by"] == "boundaries/part-of"
+        assert resolution.evidence["resolved_by"] == "/v1/geocode/search"
+        assert resolution.evidence["independent_polygon_verification"] is False
         assert evidence.count == 1
         assert not evidence.capped
     run_provider(handle, action)
-    assert [item.url.path for item in requests] == ["/v1/geocode/search", "/v1/boundaries/part-of", "/v2/places"]
+    assert [item.url.path for item in requests] == ["/v1/geocode/search", "/v2/places"]
     assert "circle" not in str(requests[-1].url)
 
 
@@ -56,11 +57,11 @@ def test_ambiguous_geocoding_is_rejected(city_factory):
         run_provider(lambda request: httpx.Response(200, json={"features": [geo_feature(), geo_feature(place_id="another-city-id")]}), lambda provider: provider.resolve_city(city_factory()))
 
 
-def test_missing_boundary_does_not_fall_back_to_radius(city_factory):
-    def handle(request):
-        return httpx.Response(200, json={"features": [] if "boundaries" in request.url.path else [geo_feature()]})
-    with pytest.raises(ProviderError, match="city_boundary_unresolved"):
-        run_provider(handle, lambda provider: provider.resolve_city(city_factory()))
+@pytest.mark.parametrize("identifier", [None, "", "x", "  ", "bad id", "x" * 2049])
+def test_missing_or_invalid_place_id_is_rejected(city_factory, identifier):
+    with pytest.raises(ProviderError, match="city_identity_unresolved"):
+        run_provider(lambda request: httpx.Response(200, json={"features": [geo_feature(place_id=identifier)]}),
+                     lambda provider: provider.resolve_city(city_factory()))
 
 
 @pytest.mark.parametrize("status,code", [(429,"rate_limited"),(401,"provider_authentication"),(503,"provider_unavailable"),(400,"provider_rejected_request")])
@@ -162,38 +163,29 @@ def test_actual_transport_log_redacts_authenticated_request_url(caplog):
     assert "apiKey=" not in caplog.text
 
 
-@pytest.mark.parametrize("matching", [True, False])
-def test_city_state_requires_matching_city_and_boundary_extents(city_factory, matching):
-    bbox = [13.0, 52.0, 14.0, 53.0]
-    requests = []
+def test_berlin_geocoded_place_is_used_without_boundary_calls(city_factory):
+    calls = []
     def handle(request):
-        requests.append(request)
-        if request.url.path == "/v1/geocode/search":
-            feature = geo_feature(state="City 1")
-            feature["bbox"] = bbox
-        else:
-            feature = geo_feature(place_id="state-boundary", result_type=None, state="City 1", categories=["administrative.country_part_level"])
-            if request.url.params.get("geometry") == "geometry_1000":
-                east = 14.0 if matching else 16.0
-                feature["geometry"] = {"type": "Polygon", "coordinates": [[[13.0, 52.0], [east, 52.0], [east, 53.0], [13.0, 53.0], [13.0, 52.0]]]}
-        return httpx.Response(200, json={"features": [feature]})
-    if matching:
-        result = run_provider(handle, lambda provider: provider.resolve_city(city_factory()))
-        assert result.place_id == "state-boundary"
-        assert result.evidence["boundary_validation"] == "city_state_extent"
-        assert result.evidence["city_bbox"] == result.evidence["boundary_bbox"]
-    else:
-        with pytest.raises(ProviderError, match="city_boundary_unresolved"):
-            run_provider(handle, lambda provider: provider.resolve_city(city_factory()))
-    assert len(requests) == 3
+        calls.append(request)
+        assert request.url.path == "/v1/geocode/search"
+        assert request.url.params["type"] == "city"
+        assert request.url.params["filter"] == "countrycode:de"
+        assert request.url.params["limit"] == "5"
+        assert request.url.params["lang"] == "en"
+        return httpx.Response(200, json={"features": [geo_feature(name="Berlin", city="Berlin", state="Berlin",
+            place_id="berlin-geocoded-place", categories=["administrative.country_part_level"])]})
+    result = run_provider(handle, lambda provider: provider.resolve_city(city_factory(name="Berlin", ascii_name="Berlin")))
+    assert result.place_id == "berlin-geocoded-place"
+    assert result.evidence["resolution_policy"] == "geocoded-city-v1"
+    assert len(calls) == 1
 
 
-def test_country_part_without_city_extent_is_not_accepted(city_factory):
-    def handle(request):
-        feature = geo_feature() if request.url.path == "/v1/geocode/search" else geo_feature(place_id="state-boundary", result_type=None, categories=["administrative.country_part_level"])
-        return httpx.Response(200, json={"features": [feature]})
-    with pytest.raises(ProviderError, match="city_boundary_unresolved"):
-        run_provider(handle, lambda provider: provider.resolve_city(city_factory()))
+def test_same_name_candidates_require_country_and_proximity(city_factory):
+    features = [geo_feature(country_code="us", place_id="other-country"),
+                geo_feature(lat=48, lon=11, place_id="same-country-far-away"), geo_feature()]
+    result = run_provider(lambda request: httpx.Response(200, json={"features": features}),
+        lambda provider: provider.resolve_city(city_factory()))
+    assert result.place_id == "city-boundary-1"
 
 
 def test_multiple_or_unknown_categories_are_rejected_without_http():
@@ -265,3 +257,21 @@ def test_unbounded_boundary_credit_cost_blocks_before_http():
         assert provider.request_count == provider.credits_reserved == 0
     run_provider(lambda request: requests.append(request), action)
     assert requests == []
+
+
+@pytest.mark.parametrize("offset,accepted", [(24.9, True), (25.1, False)])
+def test_existing_25km_proximity_limit_is_preserved(city_factory, offset, accepted):
+    feature = geo_feature(lat=52.5 + offset / 111.195)
+    action = lambda provider: provider.resolve_city(city_factory())
+    handler = lambda request: httpx.Response(200, json={"features": [feature]})
+    if accepted:
+        assert run_provider(handler, action).place_id == "city-boundary-1"
+    else:
+        with pytest.raises(ProviderError, match="city_identity_unresolved"):
+            run_provider(handler, action)
+
+
+def test_city_name_normalization_is_preserved(city_factory):
+    result = run_provider(lambda request: httpx.Response(200, json={"features": [geo_feature(name="CITY-1", city="CITY-1")]}),
+        lambda provider: provider.resolve_city(city_factory()))
+    assert result.place_id == "city-boundary-1"

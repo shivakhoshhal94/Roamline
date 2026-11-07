@@ -53,8 +53,8 @@ def main():
     enrich.add_argument("--refresh", action="store_true", help="Replace compatible cached data only after a complete successful refresh")
     enrich.add_argument("--resume", action="store_true", help="Resume valid category evidence (the default)")
     enrich.add_argument("--dry-run", action="store_true", help="Plan only; no provider requests or database writes")
-    enrich.add_argument("--max-requests", type=int, default=25, help="Hard total HTTP request budget, including identity resolution")
-    enrich.add_argument("--max-credits", type=int, default=23, help="Authorized credit ceiling; unknown boundary costs block execution")
+    enrich.add_argument("--max-requests", type=int, default=23, help="Hard total HTTP request budget, including identity resolution")
+    enrich.add_argument("--max-credits", type=int, default=23, help="Hard total credit ceiling for geocoding and Places requests")
     args = parser.parse_args()
     if args.command == "enrich" and (args.max_requests < 1 or args.max_credits < 1 or (args.resume and args.refresh)):
         parser.error("--max-requests must be positive; --resume and --refresh are mutually exclusive")
@@ -87,7 +87,7 @@ def main():
                     parser.error("--geoname-id must belong to the current bounded candidate set")
                 selected = selected[:args.limit]
                 plans = [{"geoname_id": city.geoname_id, **enrichment_plan(
-                    session, city, args.refresh, settings.feature_stale_after_days, settings.boundary_stale_after_days)} for city in selected]
+                    session, city, args.refresh, settings.feature_stale_after_days, settings.place_resolution_stale_after_days)} for city in selected]
                 print(json.dumps({"plans": plans, "max_requests": args.max_requests,
                                   "estimated_additional_requests": sum(p["estimated_additional_requests"] for p in plans),
                                   "estimated_credits": (sum(p["estimated_credits"] for p in plans) if all(p["estimated_credits"] is not None for p in plans) else None),
@@ -108,7 +108,7 @@ def main():
             async def run():
                 async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(retries=0)) as client:
                     provider = GeoapifyProvider(client, settings.geoapify_api_key.get_secret_value(), settings.geoapify_min_interval_seconds, timeout=settings.geoapify_timeout, max_requests=args.max_requests, max_credits=args.max_credits)
-                    return await enrich_candidates(factory, identifiers, provider, args.refresh, stale_after_days=settings.feature_stale_after_days, boundary_stale_after_days=settings.boundary_stale_after_days, lease_seconds=settings.enrichment_lease_seconds)
+                    return await enrich_candidates(factory, identifiers, provider, args.refresh, stale_after_days=settings.feature_stale_after_days, place_resolution_stale_after_days=settings.place_resolution_stale_after_days, lease_seconds=settings.enrichment_lease_seconds)
             report = asyncio.run(run())
             print(json.dumps(report))
             if report["failures"]:

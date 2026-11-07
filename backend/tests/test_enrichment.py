@@ -25,7 +25,7 @@ class FakeProvider:
         self.calls += 1
         if self.fail_on == self.calls:
             raise ProviderError(self.code)
-        return CityResolution("mock-boundary", {"boundary_verified_by": "mock test provider"})
+        return CityResolution("mock-boundary", {"resolution_policy": "geocoded-city-v1"})
 
     async def places(self, place_id, category):
         self.calls += 1
@@ -147,8 +147,10 @@ def test_http_contract_and_experiment_budget(database, city_factory):
     async def run():
         async def handler(request):
             requests.append(request)
-            if request.url.path == "/v1/boundaries/part-of":
-                return httpx.Response(200, json={"features": []})
+            if request.url.path == "/v1/geocode/search":
+                from test_geoapify import geo_feature
+                assert request.url.params["limit"] == "5"
+                return httpx.Response(200, json={"features": [geo_feature()]})
             assert request.url.path == "/v2/places"
             assert "," not in request.url.params["categories"]
             assert request.url.params["limit"] == "20"
@@ -158,12 +160,11 @@ def test_http_contract_and_experiment_budget(database, city_factory):
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             from app.core.config import Settings
             settings = Settings(_env_file=None, database_url="postgresql+psycopg://test:test@localhost/test")
-            provider = GeoapifyProvider(client, "unit-test-key", min_interval=0, timeout=settings.geoapify_timeout, max_requests=23)
-            await provider._get("/v1/boundaries/part-of", {"geometry": "point"})
+            provider = GeoapifyProvider(client, "unit-test-key", min_interval=0, timeout=settings.geoapify_timeout, max_requests=23, max_credits=23)
             with database.factory.begin() as session:
                 city = session.get(Destination, 1)
-                await enrich_city(session, city, provider, resolution=CityResolution("verified-boundary", {"verified": True}))
-            assert provider.request_count == 23
+                await enrich_city(session, city, provider)
+            assert provider.request_count == provider.credits_reserved == 23
             with pytest.raises(ProviderError, match="request_budget_exceeded"):
                 await provider.places("verified-boundary", "beach")
     asyncio.run(run())
@@ -183,7 +184,7 @@ def test_budget_exhaustion_preserves_database(database, city_factory):
             with pytest.raises(ProviderError, match="request_budget_exceeded"):
                 with database.factory.begin() as session:
                     await enrich_city(session, session.get(Destination, 1), provider,
-                                      resolution=CityResolution("verified", {"verified": True}))
+                                      resolution=CityResolution("verified", {"resolution_policy": "geocoded-city-v1"}))
     asyncio.run(run())
     with database.factory() as session:
         assert session.get(Destination, 1).enrichment is None
@@ -307,9 +308,9 @@ def test_dry_plan_has_no_requests_or_writes_and_counts_identity_budget(database,
         session.add(city_factory())
     with database.factory() as session:
         plan = enrichment_plan(session, session.get(Destination, 1))
-        assert plan["estimated_additional_requests"] == 25
-        assert plan["estimated_credits"] is None
-        assert plan["minimum_credits"] == 24
+        assert plan["estimated_additional_requests"] == 23
+        assert plan["estimated_credits"] == 23
+        assert plan["minimum_credits"] == 23
         assert plan["cached_categories"] == []
     assert cache_rows(database) == []
     asyncio.run(enrich_candidates(database.factory, [1], FakeProvider(fail_on=4)))

@@ -66,23 +66,25 @@ def query_provenance(place_id, category):
             "place_id": place_id, "limit": CATEGORY_RESULT_LIMIT, "lang": "en", "pagination": False}
 
 
-def boundary_identity(city, place_id):
-    return sha256(("geoapify:" + place_id + ":" + catalog_fingerprint(city)).encode()).hexdigest()
+def place_resolution_identity(city, place_id):
+    return sha256(("geoapify:geocoded-city-v1:" + place_id + ":" + catalog_fingerprint(city)).encode()).hexdigest()
 
 
-def boundary_fresh(city, days=30, now=None):
+def place_resolution_fresh(city, days=30, now=None):
     now = now or datetime.now(timezone.utc)
-    return bool(city.boundary_verified_at and city.boundary_place_id
-        and city.boundary_provider == "geoapify" and city.boundary_evidence
-        and city.boundary_catalog_fingerprint == catalog_fingerprint(city)
-        and city.boundary_fingerprint == boundary_identity(city, city.boundary_place_id)
-        and now - timedelta(days=days) <= utc(city.boundary_verified_at) <= now)
+    return bool(city.place_resolved_at and city.resolved_place_id
+        and city.place_resolution_provider == "geoapify"
+        and isinstance(city.place_resolution_evidence, dict) and city.place_resolution_evidence
+        and city.place_resolution_evidence.get("resolution_policy") == "geocoded-city-v1"
+        and city.place_resolution_catalog_fingerprint == catalog_fingerprint(city)
+        and city.place_resolution_fingerprint == place_resolution_identity(city, city.resolved_place_id)
+        and now - timedelta(days=days) <= utc(city.place_resolved_at) <= now)
 
 
 def cached_categories(session, city, stale_after_days=30, *, place_id=None, now=None,
-                      boundary_stale_after_days=30):
+                      place_resolution_stale_after_days=30):
     now = now or datetime.now(timezone.utc)
-    if not boundary_fresh(city, boundary_stale_after_days, now):
+    if not place_resolution_fresh(city, place_resolution_stale_after_days, now):
         return {}
     cutoff = now - timedelta(days=stale_after_days)
     valid = {}
@@ -91,8 +93,8 @@ def cached_categories(session, city, stale_after_days=30, *, place_id=None, now=
     for row in rows:
         if (row.category not in CATEGORY_KEYS or row.provider != "geoapify"
                 or row.generation != city.enrichment_generation
-                or row.place_id != city.boundary_place_id
-                or row.boundary_fingerprint != city.boundary_fingerprint
+                or row.place_id != city.resolved_place_id
+                or row.place_resolution_fingerprint != city.place_resolution_fingerprint
                 or (place_id is not None and row.place_id != place_id)
                 or row.catalog_fingerprint != catalog_fingerprint(city)
                 or row.mapping_version != MAPPING_VERSION or row.request_strategy != REQUEST_STRATEGY_VERSION
@@ -110,14 +112,14 @@ def cached_categories(session, city, stale_after_days=30, *, place_id=None, now=
     return valid
 
 
-def enrichment_plan(session, city, refresh=False, stale_after_days=30, boundary_stale_after_days=30):
-    fresh = boundary_fresh(city, boundary_stale_after_days)
+def enrichment_plan(session, city, refresh=False, stale_after_days=30, place_resolution_stale_after_days=30):
+    fresh = place_resolution_fresh(city, place_resolution_stale_after_days)
     cached = {} if refresh else cached_categories(session, city, stale_after_days,
-        boundary_stale_after_days=boundary_stale_after_days)
+        place_resolution_stale_after_days=place_resolution_stale_after_days)
     published = False
     if (fresh and not refresh and city.category_cache_invalidated_at is None
             and usable_snapshot(city, city.enrichment, FEATURES)
-            and city.enrichment.place_id == city.boundary_place_id
+            and city.enrichment.place_id == city.resolved_place_id
             and set(cached) == set(CATEGORY_KEYS)
             and all(city.enrichment.category_evidence[k] == item.to_record() for k, (_, item) in cached.items())):
         cutoff = datetime.now(timezone.utc) - timedelta(days=stale_after_days)
@@ -128,17 +130,15 @@ def enrichment_plan(session, city, refresh=False, stale_after_days=30, boundary_
     rows = session.scalars(select(DestinationCategoryEvidence).where(
         DestinationCategoryEvidence.destination_id == city.geoname_id)).all()
     identity = 0 if fresh else 1
-    boundary = 0 if fresh else 2  # point + optional city-state polygon verification
-    minimum = len(missing) + (0 if fresh else 2)
+    total = len(missing) + identity
     return {"total_categories": len(CATEGORY_KEYS), "cached_categories": cached_keys,
         "missing_categories": missing, "invalid_categories": [r.category for r in rows if r.category not in cached_keys],
-        "boundary_status": "fresh" if fresh else ("expired_or_incompatible" if city.boundary_verified_at else "missing"),
-        "identity_lookup_requests": identity, "boundary_verification_requests": boundary,
-        "places_requests": len(missing), "estimated_additional_requests": len(missing) + identity + boundary,
-        "credit_consumption": {"identity": identity, "places": len(missing),
-            "boundary": 0 if fresh else "ceil(point_results/20) + optional ceil(polygon_results/20) + polygon_results"},
-        "minimum_credits": minimum, "estimated_credits": len(missing) if fresh else None,
-        "credit_estimate_note": "Boundary result counts are unknown offline; no fixed upper credit estimate is safe.",
+        "place_resolution_status": "fresh" if fresh else ("expired_or_incompatible" if city.place_resolved_at else "missing"),
+        "identity_lookup_requests": identity, "place_resolution_requests": identity,
+        "boundary_api_requests": 0, "places_requests": len(missing),
+        "estimated_additional_requests": total, "credit_consumption": {"geocoding": identity, "places": len(missing)},
+        "minimum_credits": total, "estimated_credits": total,
+        "credit_estimate_note": "One credit per geocoding request and per Places request at limit 20; no retries or pagination.",
         "published_snapshot_cached": published}
 
 
@@ -206,49 +206,49 @@ def invalidate_destination(session, identifier):
     city.enrichment_lease_expires_at = None
 
 
-def save_boundary(bind, worker, resolution, lease_seconds=180):
+def save_place_resolution(bind, worker, resolution, lease_seconds=180):
     with Session(bind) as work, work.begin():
         city = check_worker(work, worker, lease_seconds)
-        fingerprint = boundary_identity(city, resolution.place_id)
-        if city.boundary_fingerprint and city.boundary_fingerprint != fingerprint:
+        fingerprint = place_resolution_identity(city, resolution.place_id)
+        if city.place_resolution_fingerprint and city.place_resolution_fingerprint != fingerprint:
             city.enrichment_generation += 1
             worker = Worker(worker.destination_id, worker.token, city.enrichment_generation, worker.fingerprint)
-        city.boundary_verified_at = datetime.now(timezone.utc)
-        city.boundary_provider = "geoapify"
-        city.boundary_place_id = resolution.place_id
-        city.boundary_fingerprint = fingerprint
-        city.boundary_catalog_fingerprint = catalog_fingerprint(city)
-        city.boundary_evidence = resolution.evidence
+        city.place_resolved_at = datetime.now(timezone.utc)
+        city.place_resolution_provider = "geoapify"
+        city.resolved_place_id = resolution.place_id
+        city.place_resolution_fingerprint = fingerprint
+        city.place_resolution_catalog_fingerprint = catalog_fingerprint(city)
+        city.place_resolution_evidence = resolution.evidence
     return worker
 
 
-def save_category(bind, worker, item, lease_seconds=180, boundary_stale_after_days=30):
+def save_category(bind, worker, item, lease_seconds=180, place_resolution_stale_after_days=30):
     item = CategoryEvidence.from_record(item.category, item.to_record())
     with Session(bind) as work, work.begin():
         city = check_worker(work, worker, lease_seconds)
-        if not boundary_fresh(city, boundary_stale_after_days):
-            raise ProviderError("boundary_expired")
+        if not place_resolution_fresh(city, place_resolution_stale_after_days):
+            raise ProviderError("place_resolution_expired")
         # The destination row lock serializes category upserts and fences older
         # generations before touching their primary-key row.
         row = DestinationCategoryEvidence(destination_id=city.geoname_id, category=item.category,
-            generation=worker.generation, boundary_fingerprint=city.boundary_fingerprint,
-            provider="geoapify", place_id=city.boundary_place_id, resolution_evidence=city.boundary_evidence,
+            generation=worker.generation, place_resolution_fingerprint=city.place_resolution_fingerprint,
+            provider="geoapify", place_id=city.resolved_place_id, resolution_evidence=city.place_resolution_evidence,
             catalog_fingerprint=worker.fingerprint, mapping_version=MAPPING_VERSION,
-            request_strategy=REQUEST_STRATEGY_VERSION, query_provenance=query_provenance(city.boundary_place_id,item.category),
+            request_strategy=REQUEST_STRATEGY_VERSION, query_provenance=query_provenance(city.resolved_place_id,item.category),
             evidence=item.to_record(), fetched_at=item.fetched_at)
         work.merge(row)
 
 
-def publish_snapshot(bind, worker, stale_after_days=30, boundary_stale_after_days=30):
+def publish_snapshot(bind, worker, stale_after_days=30, place_resolution_stale_after_days=30):
     with Session(bind) as session, session.begin():
         city = check_worker(session, worker)
-        if not boundary_fresh(city, boundary_stale_after_days):
-            raise ProviderError("boundary_expired")
-        complete = cached_categories(session, city, stale_after_days, boundary_stale_after_days=boundary_stale_after_days)
+        if not place_resolution_fresh(city, place_resolution_stale_after_days):
+            raise ProviderError("place_resolution_expired")
+        complete = cached_categories(session, city, stale_after_days, place_resolution_stale_after_days=place_resolution_stale_after_days)
         if set(complete) != set(CATEGORY_KEYS):
             raise ProviderError("incomplete_category_evidence")
         evidence = {key: item for key, (_, item) in complete.items()}
-        resolution = CityResolution(city.boundary_place_id, city.boundary_evidence)
+        resolution = CityResolution(city.resolved_place_id, city.place_resolution_evidence)
         aggregates = aggregate_features(evidence)
         # This locked transaction publishes the complete snapshot atomically;
         # an exception preserves the previous complete snapshot.
@@ -275,7 +275,7 @@ def publish_snapshot(bind, worker, stale_after_days=30, boundary_stale_after_day
 
 async def enrich_city(session: Session, city: Destination, provider: DestinationProvider,
                       refresh=False, *, resolution=None, stale_after_days=30,
-                      boundary_stale_after_days=30, lease_seconds=180):
+                      place_resolution_stale_after_days=30, lease_seconds=180):
     if session.new or session.dirty or session.deleted:
         raise ValueError("Enrichment requires a committed catalog and a read-only caller session")
     identifier, bind = city.geoname_id, session.get_bind()
@@ -286,37 +286,37 @@ async def enrich_city(session: Session, city: Destination, provider: Destination
     try:
         with Session(bind, expire_on_commit=False) as work, work.begin():
             current = check_worker(work, worker, lease_seconds)
-            plan = enrichment_plan(work, current, False, stale_after_days, boundary_stale_after_days)
+            plan = enrichment_plan(work, current, False, stale_after_days, place_resolution_stale_after_days)
             if plan["published_snapshot_cached"] and not refresh:
                 return "cached"
-            needs_boundary = not boundary_fresh(current, boundary_stale_after_days)
+            needs_resolution = not place_resolution_fresh(current, place_resolution_stale_after_days)
             work.expunge(current)
         if resolution is not None:
-            worker = save_boundary(bind, worker, resolution, lease_seconds)
-        elif needs_boundary:
+            worker = save_place_resolution(bind, worker, resolution, lease_seconds)
+        elif needs_resolution:
             resolution = await provider.resolve_city(current)
-            worker = save_boundary(bind, worker, resolution, lease_seconds)
+            worker = save_place_resolution(bind, worker, resolution, lease_seconds)
         with Session(bind) as work, work.begin():
             current = check_worker(work, worker, lease_seconds)
-            cached = cached_categories(work, current, stale_after_days, boundary_stale_after_days=boundary_stale_after_days)
+            cached = cached_categories(work, current, stale_after_days, place_resolution_stale_after_days=place_resolution_stale_after_days)
             missing = [key for key in CATEGORY_KEYS if key not in cached]
-            place_id = current.boundary_place_id
+            place_id = current.resolved_place_id
         for category in missing:
             with Session(bind) as work, work.begin():
                 current = check_worker(work, worker, lease_seconds)
-                if not boundary_fresh(current, boundary_stale_after_days):
-                    raise ProviderError("boundary_expired")
+                if not place_resolution_fresh(current, place_resolution_stale_after_days):
+                    raise ProviderError("place_resolution_expired")
             item = await provider.places(place_id, category)
             if item.category != category:
                 raise ProviderError("invalid_response")
-            save_category(bind, worker, item, lease_seconds, boundary_stale_after_days)
-        return publish_snapshot(bind, worker, stale_after_days, boundary_stale_after_days)
+            save_category(bind, worker, item, lease_seconds, place_resolution_stale_after_days)
+        return publish_snapshot(bind, worker, stale_after_days, place_resolution_stale_after_days)
     finally:
         release_worker(bind, worker)
 
 
 async def enrich_candidates(session_factory, candidate_ids, provider, refresh=False, *,
-                            stale_after_days=30, boundary_stale_after_days=30, lease_seconds=180):
+                            stale_after_days=30, place_resolution_stale_after_days=30, lease_seconds=180):
     report = {"refreshed": [], "cached": [], "incomplete": [], "failures": []}
     for identifier in candidate_ids:
         try:
@@ -325,7 +325,7 @@ async def enrich_candidates(session_factory, candidate_ids, provider, refresh=Fa
                 if city is None:
                     continue
                 status = await enrich_city(session, city, provider, refresh, stale_after_days=stale_after_days,
-                    boundary_stale_after_days=boundary_stale_after_days, lease_seconds=lease_seconds)
+                    place_resolution_stale_after_days=place_resolution_stale_after_days, lease_seconds=lease_seconds)
                 report[status].append(identifier)
         except ProviderError as error:
             report["incomplete"].append(identifier)
