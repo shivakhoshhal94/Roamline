@@ -1,0 +1,55 @@
+{
+  "source": {
+    "url": "https://dumps.wikimedia.org/enwikivoyage/latest/enwikivoyage-latest-pages-articles.xml.bz2",
+    "sha1": "1d681d567e0e720e6ac253c71083620e8a6b729c",
+    "sha256": "df5aac6e6713cbdde73e805e9d10976a46850afc921b05d3e2cc022c9c8e1228",
+    "bytes": 132561035
+  },
+  "snapshot_date": "2026-11-01",
+  "parser_version": "wikivoyage-sections-v1",
+  "complete_pass": {
+    "source_sha256": "df5aac6e6713cbdde73e805e9d10976a46850afc921b05d3e2cc022c9c8e1228",
+    "pages_processed": 34821,
+    "matched_pages": 10157,
+    "written_pages": 9809,
+    "unchanged_pages": 333,
+    "chunks_written": 156949,
+    "unmatched_pages": 24664,
+    "seconds": 1541.8293178000022,
+    "destinations": 9026,
+    "chunks": 162610,
+    "continents": {
+      "AF": 764,
+      "AN": 1,
+      "AS": 2518,
+      "EU": 2602,
+      "NA": 2341,
+      "OC": 124,
+      "SA": 676
+    }
+  },
+  "idempotency_pass": {
+    "source_sha256": "df5aac6e6713cbdde73e805e9d10976a46850afc921b05d3e2cc022c9c8e1228",
+    "pages_processed": 34821,
+    "matched_pages": 10157,
+    "written_pages": 0,
+    "unchanged_pages": 10142,
+    "chunks_written": 0,
+    "unmatched_pages": 24664,
+    "seconds": 422.2943557999097,
+    "destinations": 9026,
+    "chunks": 162610,
+    "continents": {
+      "AF": 764,
+      "AN": 1,
+      "AS": 2518,
+      "EU": 2602,
+      "NA": 2341,
+      "OC": 124,
+      "SA": 676
+    }
+  },
+  "persisted_pages": 10142,
+  "countries": 219,
+  "note": "Complete pass resumed 333 committed pages from an interrupted initial attempt. Fifteen matched pages had no usable chunks. No synthetic knowledge inserted."
+}

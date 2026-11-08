@@ -9,11 +9,15 @@ requires-python = ">=3.12"
 dependencies = [
   "fastapi>=0.115,<1", "uvicorn>=0.34,<1", "pydantic>=2.10,<3",
   "pydantic-settings>=2.7,<3", "sqlalchemy>=2.0,<3",
-  "psycopg[binary]>=3.2,<4", "alembic>=1.14,<2", "httpx>=0.28,<1",
+  "pgvector>=0.4,<0.5", "psycopg[binary]>=3.2,<4", "alembic>=1.14,<2", "httpx>=0.28,<1",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<10"]
+retrieval = [
+  "mwxml>=0.3,<0.4", "mwparserfromhell>=0.7,<0.8",
+  "langchain-text-splitters>=1,<2", "sentence-transformers>=5,<6", "ranx>=0.3,<0.4",
+]
 
 [tool.setuptools.packages.find]
 include = ["app*"]

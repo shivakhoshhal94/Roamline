@@ -22,6 +22,7 @@ Travel planning often starts with scattered ideas, too many tabs, and generic li
 - One canonical traveler profile reused for destination matching and future itinerary planning, without profile storage.
 - GeoNames city catalog import and PostgreSQL migrations; a bounded, data-driven candidate policy.
 - Explicit Geoapify geocoded-place/POI enrichment: 22 unique categories, one per sequential request, with resumable category-level caching, original POI evidence, and deduplicated interest features.
+- Internal worldwide travel-knowledge retrieval: streaming Wikivoyage ingestion, local embeddings, PostgreSQL lexical/pgvector search, destination RRF and optional local CrossEncoder; separate from product scoring.
 - Deterministic interest-weighted destination ranking with score decomposition, unsupported-preference disclosure, and an honest result/empty-state UI.
 - SQLAlchemy engine lifecycle, Alembic scaffolding, development Compose, and foundational CI/tests.
 
@@ -174,7 +175,7 @@ Keep implemented behavior separate from product intent. Prefer clear module boun
 
 ## Recommended next milestone
 
-Verify a small live Geoapify enrichment run with a configured key, inspect city-resolution rejection rates and regional coverage, and evaluate/calibrate the current proxies against documented travel scenarios. Add further preference dimensions only when reliable evidence exists; itinerary planning remains a separate milestone.
+Expand and independently review the worldwide retrieval benchmark, incrementally embed broader knowledge coverage, and evaluate a bounded retrieval shortlist before connecting it to final product ranking. Berlin live Geoapify integration is verified; comparative multi-city recommendation quality remains unestablished. Itinerary planning remains a separate milestone.
 
 ## Destination data quick start
 
@@ -199,3 +200,11 @@ Destination enrichment uses a PostgreSQL-row-locked lease and durable generation
 Geoapify Places uses a separate read timeout: `GEOAPIFY_PLACES_READ_TIMEOUT_SECONDS=30`. Geocoding retains `GEOAPIFY_READ_TIMEOUT_SECONDS=15`; connect/write/pool defaults remain 15/5/5 seconds for both operations. No automatic retries are enabled.
 
 Comparative ranking quality across multiple destinations has not yet been established.
+
+## Worldwide retrieval foundation
+
+The internal retriever now retrieves destination shortlists from travel text without requiring prior deep Geoapify evidence. It does not automatically enrich results or change the existing recommendation UI/score. Read [architecture, reproducible operations and limitations](docs/worldwide-retrieval.md), [curated evaluation queries](evaluation/retrieval/queries.json), and [measured benchmark results](evaluation/retrieval/results.md). PostgreSQL remains version 17 and now uses the pgvector-enabled image; retain the existing named volume and apply migration 0006. Models/dumps stay outside Git. Normal tests use deterministic fake encoders and do not download models.
+
+The current English Wikivoyage import contains 10,142 usable pages for 9,026 destinations and 162,610 chunks. The measured two-model CPU benchmark uses an explicit worldwide bootstrap cohort of 256 destinations / 1,024 chunks; it does not establish full-catalog retrieval quality. BGE-small is the measured hybrid default; exact cosine remains the baseline, and optional CrossEncoder reranking did not improve hybrid nDCG in this benchmark.
+
+Only 29 of 49 judged destinations were present in the 256-destination cohort. Full-corpus retrieval evaluation remains pending. CrossEncoder reranking currently reduces measured nDCG while adding substantial CPU latency, so it is optional/experimental, not production-ready reranking. No product recommendation path has changed. LLM/RAG generation and LangGraph are not implemented.

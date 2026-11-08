@@ -90,3 +90,6 @@ class DestinationCategoryEvidence(Base):
     query_provenance: Mapped[dict] = mapped_column(JSON)
     evidence: Mapped[dict] = mapped_column(JSON)
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+# Register knowledge tables with the existing Alembic/SQLAlchemy metadata.
+from app.knowledge import models as knowledge_models  # noqa: E402,F401

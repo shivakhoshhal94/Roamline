@@ -27,3 +27,10 @@ dist/
 *.egg-info/
 .tmp/
 *.tsbuildinfo
+
+# Public corpora and local model caches
+data/
+.cache/
+*.safetensors
+*.pt
+*.onnx
