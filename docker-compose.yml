@@ -18,6 +18,8 @@ services:
     build: ./backend
     environment:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL with db as hostname for Docker}
+      RETRIEVAL_MODEL_PATH: ${RETRIEVAL_MODEL_PATH:-}
+      RETRIEVAL_THREADS: ${RETRIEVAL_THREADS:-2}
       CORS_ORIGINS: ${CORS_ORIGINS:-[]}
       GEOAPIFY_API_KEY: ${GEOAPIFY_API_KEY:-}
       GEOAPIFY_MIN_INTERVAL_SECONDS: ${GEOAPIFY_MIN_INTERVAL_SECONDS:-1}
@@ -35,6 +37,7 @@ services:
       - "127.0.0.1:8000:8000"
     volumes:
       - ./backend/app:/app/app
+      - ./.tmp/models:/models:ro
     command: uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000 --reload
     depends_on:
       db:

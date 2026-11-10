@@ -28,6 +28,7 @@ import type {
   ValidatedTravelerProfile,
 } from "@/lib/traveler-profile";
 import { PreferenceChoices } from "./preference-choices";
+import { useJourneyProfile } from "./journey-profile";
 import { ProfileSummary } from "./profile-summary";
 
 const introductions = [
@@ -49,8 +50,9 @@ const introductions = [
   ],
 ];
 
-export function TravelerProfileForm() {
-  const [profile, setProfile] = useState<TravelerProfile>(emptyProfile);
+export function TravelerProfileForm({ destination }: { destination?: import("@/lib/discovery").Destination }) {
+  const journey = useJourneyProfile();
+  const [profile, setProfile] = useState<TravelerProfile>(() => journey.profile ?? emptyProfile());
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [customInterest, setCustomInterest] = useState("");
@@ -169,6 +171,7 @@ export function TravelerProfileForm() {
       const result = await api.validateTravelerProfile(profile);
       focusIntent.current = "summary";
       setValidated(result);
+      journey.remember(result);
     } catch (error) {
       if (error instanceof ProfileValidationError) showErrors(error.fields);
       else
@@ -206,6 +209,7 @@ export function TravelerProfileForm() {
       {validated ? (
         <ProfileSummary
           profile={validated}
+          destination={destination}
           onEdit={() => {
             setValidated(null);
             moveTo(0);
@@ -239,7 +243,7 @@ export function TravelerProfileForm() {
             <p className="privacy-note">
               No account. No saved profile.
               <br />
-              Your entries stay here until you leave or refresh.
+              Validated preferences stay in memory between journeys until you refresh.
             </p>
           </aside>
           <div className="intake-panel">

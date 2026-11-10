@@ -10,6 +10,7 @@ from app.knowledge.models import KnowledgePage, KnowledgeChunk, KnowledgeEmbeddi
 
 class RetrievalRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    destination_id: int | None = Field(default=None, gt=0)
     query: str = Field(min_length=3, max_length=1500)
     countries: list[str] = []
     continents: list[str] = []
@@ -38,6 +39,8 @@ class RetrievalRequest(BaseModel):
 
 def filtered(statement, request):
     statement = statement.where(Destination.population >= request.min_population)
+    if request.destination_id is not None:
+        statement = statement.where(Destination.geoname_id == request.destination_id)
     if request.countries:
         statement = statement.where(Destination.country_code.in_(request.countries))
     if request.continents:
@@ -46,8 +49,9 @@ def filtered(statement, request):
 
 
 def chunk_ranks(session, request, encoder=None, query_vector=None, mode="dense", exact=True, limit=500, corpus_ids=None):
-    columns = [KnowledgeChunk, KnowledgePage, Destination]
-    statement = select(*columns).join(KnowledgePage, KnowledgePage.id == KnowledgeChunk.page_id).join(Destination, Destination.geoname_id == KnowledgePage.destination_id)
+    # Rank narrow IDs first; sorting full guide and operational destination rows
+    # across the corpus needlessly spills large payloads to disk. Hydrate only hits.
+    statement = select(KnowledgeChunk.id.label("hit_id")).join(KnowledgePage, KnowledgePage.id == KnowledgeChunk.page_id).join(Destination, Destination.geoname_id == KnowledgePage.destination_id)
     if mode == "dense":
         if encoder is None:
             raise ValueError("Dense retrieval requires a versioned encoder")
@@ -74,8 +78,13 @@ def chunk_ranks(session, request, encoder=None, query_vector=None, mode="dense",
         raise ValueError("Unknown retrieval mode")
     if corpus_ids is not None:
         statement = statement.where(KnowledgeChunk.id.in_(corpus_ids))
-    statement = filtered(statement, request).limit(limit)
-    return session.execute(statement).all()
+    hits = filtered(statement, request).limit(limit).subquery()
+    hydrated = select(KnowledgeChunk, KnowledgePage, Destination, hits.c.score).join(
+        hits, hits.c.hit_id == KnowledgeChunk.id).join(
+        KnowledgePage, KnowledgePage.id == KnowledgeChunk.page_id).join(
+        Destination, Destination.geoname_id == KnowledgePage.destination_id).order_by(
+        hits.c.score.desc(), KnowledgeChunk.id)
+    return session.execute(hydrated).all()
 
 
 def destination_ranks(rows, policy="best"):

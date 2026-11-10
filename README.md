@@ -13,7 +13,7 @@ Travel planning often starts with scattered ideas, too many tabs, and generic li
 
 ### Implemented
 
-- Next.js landing page, a staged **Traveler Profile / Preference Intake** workflow at `/discover`, and an honest `/plan` route shell.
+- Next.js landing page, a staged **Traveler Profile / Preference Intake** workflow at `/discover`, and destination-focused guide exploration at `/plan`.
 - `POST /api/v1/traveler-profile/validate` validates and returns a normalized canonical traveler profile without persistence.
 - An editable, human-readable preference summary after successful backend validation.
 - FastAPI `/health` liveness and `/ready` PostgreSQL connectivity check (503 when unavailable).
@@ -23,7 +23,8 @@ Travel planning often starts with scattered ideas, too many tabs, and generic li
 - GeoNames city catalog import and PostgreSQL migrations; a bounded, data-driven candidate policy.
 - Explicit Geoapify geocoded-place/POI enrichment: 22 unique categories, one per sequential request, with resumable category-level caching, original POI evidence, and deduplicated interest features.
 - Internal worldwide travel-knowledge retrieval: streaming Wikivoyage ingestion, local embeddings, PostgreSQL lexical/pgvector search, destination RRF and optional local CrossEncoder; separate from product scoring.
-- Deterministic interest-weighted destination ranking with score decomposition, unsupported-preference disclosure, and an honest result/empty-state UI.
+- Separate deterministic Geoapify interest-weighted ranking API with score decomposition and unsupported-preference disclosure; its behavior is preserved.
+- Worldwide retrieval-backed discovery and destination-scoped guide exploration, with citations, category groups, accessible controls and honest loading/error/empty states.
 - SQLAlchemy engine lifecycle, Alembic scaffolding, development Compose, and foundational CI/tests.
 
 ![Traveler preference intake on the running Roamline application](docs/images/traveler-preferences.png)
@@ -36,8 +37,9 @@ Richer destination evidence and calibrated ranking, multi-day itineraries, geogr
 
 ```mermaid
 flowchart LR
-    Web[Next.js preference intake and results] -->|Canonical profile / typed HTTP| API[FastAPI deterministic ranking]
-    API -->|Read catalog and cached evidence| DB[(PostgreSQL)]
+    Web[Next.js preference intake and results] -->|Canonical profile / typed HTTP| API[FastAPI discovery and deterministic ranking]
+    API -->|Read guide chunks, vectors and cached evidence| DB[(PostgreSQL + pgvector)]
+    BGE[Local pinned BGE query encoder] --> API
     GeoNames[GeoNames cities15000] -->|Explicit import CLI| DB
     CLI[Explicit enrichment CLI] -->|City geocoding and category requests| Geoapify[Geoapify]
     CLI -->|Atomic evidence snapshots| DB
@@ -167,7 +169,7 @@ The contract includes:
 }
 ```
 
-Open `/discover` to complete four progressive stages: trip context, interests, rhythm, and comfort. Fields use native accessible controls, preserve draft values while moving Back/Continue, and show inline errors. Backend validation is authoritative. A successful response displays a normalized summary with an Edit option. State exists only in memory; leaving or refreshing loses it. Nothing is saved in browser storage or PostgreSQL. After validation, request destination matches using this same profile. Cards show country/city, an evidence-match score, deterministic reasons, freshness and an expandable score decomposition. Only prepared, compatible feature evidence is used; unavailable data yields clear empty states. `/plan` remains a shell and can later reuse the same contract and preference controls.
+Open `/discover` to complete four progressive stages: trip context, interests, rhythm, and comfort. Fields use native accessible controls, preserve draft values while moving Back/Continue, and show inline errors. Backend validation is authoritative. A successful response displays a normalized summary with an Edit option. State exists only in memory; validated preferences survive navigation between the two journeys until refresh. Nothing is saved in browser storage or PostgreSQL. After validation, search worldwide guide knowledge using the same profile. Cards show canonical identity, retrieved source passages and transparent search ranks. `/plan` reuses the profile controls for destination-scoped exploration. The separate existing Geoapify recommendation API still uses only prepared compatible feature evidence.
 
 ## Engineering approach
 
@@ -203,8 +205,23 @@ Comparative ranking quality across multiple destinations has not yet been establ
 
 ## Worldwide retrieval foundation
 
-The internal retriever now retrieves destination shortlists from travel text without requiring prior deep Geoapify evidence. It does not automatically enrich results or change the existing recommendation UI/score. Read [architecture, reproducible operations and limitations](docs/worldwide-retrieval.md), [curated evaluation queries](evaluation/retrieval/queries.json), and [measured benchmark results](evaluation/retrieval/results.md). PostgreSQL remains version 17 and now uses the pgvector-enabled image; retain the existing named volume and apply migration 0006. Models/dumps stay outside Git. Normal tests use deterministic fake encoders and do not download models.
+The internal retriever now retrieves destination shortlists from travel text without requiring prior deep Geoapify evidence. It does not automatically enrich results or change the existing Geoapify recommendation API/score. Product discovery now has separate retrieval-backed UI flows. Read [architecture, reproducible operations and limitations](docs/worldwide-retrieval.md), [curated evaluation queries](evaluation/retrieval/queries.json), and [measured benchmark results](evaluation/retrieval/results.md). PostgreSQL remains version 17 and now uses the pgvector-enabled image; retain the existing named volume and apply migrations through 0007. Models/dumps stay outside Git. Normal tests use deterministic fake encoders and do not download models.
 
 The current English Wikivoyage import contains 10,142 usable pages for 9,026 destinations and 162,610 chunks. The measured two-model CPU benchmark uses an explicit worldwide bootstrap cohort of 256 destinations / 1,024 chunks; it does not establish full-catalog retrieval quality. BGE-small is the measured hybrid default; exact cosine remains the baseline, and optional CrossEncoder reranking did not improve hybrid nDCG in this benchmark.
 
-Only 29 of 49 judged destinations were present in the 256-destination cohort. Full-corpus retrieval evaluation remains pending. CrossEncoder reranking currently reduces measured nDCG while adding substantial CPU latency, so it is optional/experimental, not production-ready reranking. No product recommendation path has changed. LLM/RAG generation and LangGraph are not implemented.
+Only 29 of 49 judged destinations were present in the 256-destination cohort. Full-corpus retrieval evaluation remains pending. CrossEncoder reranking currently reduces measured nDCG while adding substantial CPU latency, so it is optional/experimental, not production-ready reranking. The Geoapify recommendation endpoint remains unchanged; the new product discovery paths use guide retrieval without a personal-match score. LLM/RAG generation and LangGraph are not implemented.
+
+## Product discovery integration
+
+Both product journeys now reuse the same local BGE/pgvector, PostgreSQL lexical
+search, RRF and stored Wikivoyage provenance. `/discover` offers a worldwide
+shortlist with optional country/continent filters; `/plan` looks up canonical
+indexed destinations and retrieves destination-scoped guide passages grouped by
+interest category. The original Geoapify evidence-scoring API remains unchanged.
+No automatic enrichment, LLM, LangGraph, reranking or complete itinerary is used.
+
+See [product API contracts and local setup](docs/product-discovery.md). Human review
+is deferred; no new quality metrics or relevance labels are claimed. Retrieval
+ranks are not calibrated personal-match scores. Local editorial imagery currently
+covers Berlin only, with visible Commons attribution; other destinations use text
+and source evidence without invented photographs.

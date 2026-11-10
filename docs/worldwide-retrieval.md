@@ -2,7 +2,7 @@
 
 ## Implemented scope
 
-This internal retriever is separate from the existing Geoapify-backed recommendation score. It retrieves a worldwide shortlist from travel knowledge, without requiring deep Geoapify evidence. It never triggers Geoapify, OpenAI, weather, itinerary or text-generation calls. The product recommendation endpoint and frontend contract are unchanged; connecting retrieval to a final product ranking is a later milestone.
+This internal retriever is separate from the existing Geoapify-backed recommendation score. It retrieves a worldwide shortlist from travel knowledge, without requiring deep Geoapify evidence. It never triggers Geoapify, OpenAI, weather, itinerary or text-generation calls. The Geoapify recommendation endpoint is unchanged. Separate product discovery endpoints and frontend flows now consume retrieval evidence without a calibrated fit score; final personal ranking remains a later milestone.
 
 ```text
 GeoNames identity + current Wikivoyage dump
@@ -108,8 +108,16 @@ No free text is interpreted by an LLM. No Geoapify enrichment is automatic. The 
 
 ## Planned, not implemented
 
-Wikipedia/Wikidata fallbacks, multilingual corpora, full-catalog embedding operations at production scale, independent identity review, held-out relevance judgments, product-level shortlist integration, automatic approved shortlist enrichment, LLM/RAG answer generation, LangGraph, weather and itinerary generation are not part of this milestone.
+Wikipedia/Wikidata fallbacks, multilingual corpora, full-catalog embedding operations at production scale, independent identity review, held-out relevance judgments, automatic approved shortlist enrichment, LLM/RAG answer generation, LangGraph, weather and itinerary generation are not part of this milestone.
 
 ## Resumable corpus embeddings
 
 Migration 0007 records the chunk content hash represented by each vector. `embedding-status --model <model> --revision <revision>` reports compatible cached coverage without loading weights. `embed` resumes by default, skips matching content/model revisions, commits bounded batches, and reports progress to stderr. `--force` replaces only the explicitly selected model/revision in atomic batches; it does not delete other model versions. `--batch-size`, `--inference-batch-size` and `--threads` bound/configure CPU execution. Changed content is checked again under row locks before storing a computed vector. Exceptions stop the run; completed batches survive.
+
+## Product integration
+
+The product now uses the existing retrieval foundation through two independent
+retrieval APIs and `/discover` + `/plan` UI flows. The original Geoapify scored
+recommendation API remains unchanged. See [contracts and limitations](product-discovery.md).
+Human judgments/evaluation artifacts are unchanged; integrating search into the UI
+is not evidence of measured full-corpus retrieval quality.

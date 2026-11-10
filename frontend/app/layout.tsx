@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { JourneyProfileProvider } from "@/components/journey-profile";
 import Link from "next/link";
 import "./globals.css";
 
@@ -21,7 +22,7 @@ export default function RootLayout({
             A little further. A little more you.
           </span>
         </header>
-        {children}
+        <JourneyProfileProvider>{children}</JourneyProfileProvider>
         <footer>
           <span>Roamline</span>
           <span>Made for the way you want to travel.</span>

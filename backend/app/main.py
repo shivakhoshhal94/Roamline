@@ -1,4 +1,6 @@
 from contextlib import asynccontextmanager
+from threading import Lock
+from app.api.discovery import router as discovery_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.health import router
@@ -25,7 +27,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         CORSMiddleware, allow_origins=config.cors_origins,
         allow_methods=["GET", "POST"], allow_headers=["Accept", "Content-Type"],
     )
+    app.state.retrieval_lock = Lock()
+    app.state.retrieval_encoder = None
     app.state.settings = config
+    app.include_router(discovery_router)
     app.include_router(recommendations_router)
     app.include_router(router)
     app.include_router(profile_router)

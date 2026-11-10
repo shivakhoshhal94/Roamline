@@ -958,3 +958,31 @@ summary:focus-visible {
     gap: 12px;
   }
 }
+/* Shared guide discovery surfaces */
+.guide-discovery { margin-top: 4rem; border-top: 1px solid var(--line, #d5dcd1); padding-top: 2rem; }
+.guide-discovery h2 { font: normal clamp(1.8rem, 4vw, 2.8rem) Georgia, serif; }
+.guide-results { margin-top: 2rem; }
+.guide-card { border: 1px solid #d5dcd1; border-radius: 18px; padding: clamp(1rem, 3vw, 2rem); margin: 1rem 0; background: #fffef9; overflow-wrap: anywhere; }
+.guide-card-heading { display: flex; gap: 1rem; align-items: center; }
+.guide-card h3 { margin: 0; font: normal 1.8rem Georgia, serif; }
+.guide-rank { font: normal 2.8rem Georgia, serif; color: #657c68; }
+.guide-passage { margin: 1.3rem 0; padding: 0 0 0 1rem; border-left: 2px solid #a8b8a5; }
+.guide-passage p { white-space: pre-line; font-size: .95rem; }
+.guide-passage small { display: block; font-size: .75rem; color: #526557; margin-top: .4rem; }
+.guide-card details { margin: 1rem 0; }
+.guide-card summary, .guide-disclosure summary { cursor: pointer; font-weight: 600; padding: .6rem 0; }
+.guide-category-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.guide-category-grid .guide-card { margin: 0; }
+.guide-disclosure { padding: 1rem; border-top: 1px solid #d5dcd1; margin-top: 2rem; }
+.destination-picker { max-width: 900px; }
+.destination-picker form { max-width: 600px; margin-top: 2rem; }
+.destination-context { max-width: 1200px; margin: 2rem auto 0; padding: 0 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.destination-options { list-style: none; padding: 0; max-width: 600px; }
+.destination-options button { display: flex; justify-content: space-between; gap: 1rem; width: 100%; margin-bottom: .6rem; text-align: left; }
+.guide-filters { margin: 1.5rem 0; }
+@media (max-width: 700px) { .guide-category-grid { grid-template-columns: 1fr; } .guide-card h3 { font-size: 1.5rem; } }
+.destination-photo { margin: 0 0 1.5rem; }
+.destination-photo img { display: block; width: 100%; height: clamp(180px, 32vw, 340px); object-fit: cover; border-radius: 12px; }
+.destination-photo figcaption { font-size: .7rem; color: #526557; padding-top: .5rem; }
+.guide-passage footer { display: block; padding: 0; margin: .5rem 0 0; border: 0; background: transparent; }
+.guide-passage footer a { font-size: .85rem; }

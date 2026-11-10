@@ -1,4 +1,5 @@
-import { DestinationRecommendations } from "./destination-recommendations";
+import { GuideDiscovery } from "./guide-discovery";
+import type { Destination } from "@/lib/discovery";
 import type { ValidatedTravelerProfile } from "@/lib/traveler-profile";
 import {
   comforts,
@@ -29,9 +30,11 @@ function displayDate(value: string | null): string {
 export function ProfileSummary({
   profile,
   onEdit,
+  destination,
 }: {
   profile: ValidatedTravelerProfile;
   onEdit: () => void;
+  destination?: Destination;
 }) {
   const trip = profile.travel_context;
   return (
@@ -42,7 +45,7 @@ export function ProfileSummary({
       </h1>
       <p className="subtitle">
         Validated and shaped around you. Explore destination matches from your
-        interests; trip planning will follow.
+        interests and explore guide knowledge for a place you already have in mind.
       </p>
       <div className="summary-grid">
         <section>
@@ -124,14 +127,14 @@ export function ProfileSummary({
         </section>
       </div>
       <p className="privacy-note">
-        This profile is not saved. Your entries stay in this page until you
-        leave or refresh. Your profile is sent for matching only when you
+        This profile is not saved. Validated preferences stay in memory between journeys until you
+        refresh. Your profile is sent for matching only when you
         request destination matches. Itinerary planning is not available yet.
       </p>
       <button className="primary-button" type="button" onClick={onEdit}>
         Edit preferences
       </button>
-      <DestinationRecommendations profile={profile} onEdit={onEdit} />
+      <GuideDiscovery profile={profile} destination={destination} />
     </section>
   );
 }

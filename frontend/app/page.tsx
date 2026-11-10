@@ -12,7 +12,7 @@ export default function Home() {
             closer to <em>you.</em>
           </h1>
           <p className="subtitle">
-            Personalized travel discovery and itinerary planning.
+            Travel discovery, shaped around your curiosity.
           </p>
           <p className="intro">
             For the places that spark your curiosity, and the days you want to
@@ -54,8 +54,8 @@ export default function Home() {
           <JourneyCard
             number="02"
             label="Plan"
-            title="Plan a trip to my destination"
-            description="I already know where I'm going. Help me decide what to experience and how to organize my days."
+            title="Find what to explore at my destination"
+            description="I already know where I'm going. Help me explore what to see and experience."
             href="/plan"
           />
         </div>

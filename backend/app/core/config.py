@@ -8,6 +8,8 @@ class Settings(BaseSettings):
 
     database_url: PostgresDsn
     cors_origins: list[str] = []
+    retrieval_model_path: str | None = None
+    retrieval_threads: int = Field(default=2, ge=1, le=16)
     geoapify_api_key: SecretStr | None = None
     geoapify_min_interval_seconds: float = Field(default=1.0, ge=0.2, le=60)
     geoapify_connect_timeout_seconds: float = Field(default=15.0, gt=0, le=120)
