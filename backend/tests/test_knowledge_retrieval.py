@@ -243,3 +243,124 @@ def test_postgres_frozen_corpus_is_repeatable_and_detects_source_drift(retrieval
         session.get(KnowledgeChunk,first[0]).content_hash="b"*64
     with pytest.raises(ValueError,match="Frozen corpus no longer matches"):
         freeze_corpus(database.factory,manifest)
+
+
+def test_model_specific_formatting_without_loading_weights():
+    from app.retrieval.embedding import LocalEncoder, MODELS
+    for name in MODELS:
+        encoder=object.__new__(LocalEncoder);encoder.name=name
+        calls=[]
+        class Model:
+            def encode(self,texts,**kwargs):
+                calls.append((texts,kwargs));return np.ones((len(texts),384),dtype=np.float32)
+        encoder.model=Model()
+        encoder.encode(['architecture'],query=True);encoder.encode(['museum'])
+        if name.startswith('intfloat'):
+            assert calls[0][0]==['query: architecture'] and calls[1][0]==['passage: museum']
+        else:
+            assert calls[0][0]==['Represent this sentence for searching relevant passages: architecture']
+            assert calls[1][0]==['museum']
+        assert all(kwargs['normalize_embeddings'] for _,kwargs in calls)
+
+
+def test_embedding_interruption_resume_hash_versions_and_force(retrieval_postgres,city_factory):
+    from app.retrieval.embedding import embed_chunks,embedding_status
+    db=retrieval_postgres
+    with db.factory.begin() as session:
+        for identifier in range(1,4):
+            city=city_factory(identifier);session.add(city)
+            ingest_page(session,city,city.name,identifier,1,datetime.now(timezone.utc),'== See ==\n'+TEXT,'a'*64,0)
+    class Interrupted(FakeEncoder):
+        calls=0
+        def encode(self,texts,query=False):
+            self.calls+=1
+            if self.calls==2:raise RuntimeError('controlled test interruption')
+            return super().encode(texts,query)
+    encoder=Interrupted()
+    with pytest.raises(RuntimeError,match='controlled test'):
+        embed_chunks(db.factory,encoder,batch_size=1)
+    assert embedding_status(db.factory,encoder.name,encoder.revision)['already_embedded']==1
+    resumed=embed_chunks(db.factory,FakeEncoder(),batch_size=1)
+    assert resumed['newly_embedded']==2 and resumed['skipped_unchanged']==1
+    assert resumed['final_status']['remaining']==0
+    assert embed_chunks(db.factory,FakeEncoder())['newly_embedded']==0
+    with db.factory.begin() as session:
+        chunk=session.scalar(select(KnowledgeChunk).order_by(KnowledgeChunk.id));chunk.content_hash='c'*64
+    assert embedding_status(db.factory,encoder.name,encoder.revision)['remaining']==1
+    assert embed_chunks(db.factory,FakeEncoder())['newly_embedded']==1
+    newer=FakeEncoder();newer.revision='b'*40
+    assert embed_chunks(db.factory,newer)['newly_embedded']==3
+    assert embed_chunks(db.factory,newer,force=True)['newly_embedded']==3
+    assert embedding_status(db.factory,encoder.name,encoder.revision)['already_embedded']==3
+
+
+def test_encoding_race_never_persists_a_vector_for_changed_content(retrieval_postgres,city_factory):
+    from app.retrieval.embedding import embed_chunks
+    db=retrieval_postgres
+    with db.factory.begin() as session:
+        city=city_factory();session.add(city)
+        ingest_page(session,city,city.name,1,1,datetime.now(timezone.utc),'== See ==\n'+TEXT,'a'*64,0)
+    class Changing(FakeEncoder):
+        def encode(self,texts,query=False):
+            with db.factory.begin() as session:
+                chunk=session.scalar(select(KnowledgeChunk));chunk.content_hash='f'*64
+            return super().encode(texts,query)
+    result=embed_chunks(db.factory,Changing())
+    assert result['newly_embedded']==0 and result['final_status']['remaining']==1
+    with db.factory() as session:
+        assert session.scalar(select(func.count()).select_from(KnowledgeEmbedding))==0
+    assert embed_chunks(db.factory,FakeEncoder())['newly_embedded']==1
+
+
+def test_hash_mismatched_embeddings_are_not_retrieved(retrieval_postgres, city_factory):
+    from app.retrieval.embedding import embed_chunks
+    db = retrieval_postgres
+    with db.factory.begin() as session:
+        city = city_factory()
+        session.add(city)
+        ingest_page(session, city, city.name, 1, 1, datetime.now(timezone.utc), '== See ==\n' + TEXT, 'a' * 64, 0)
+    encoder = FakeEncoder()
+    embed_chunks(db.factory, encoder)
+    request = RetrievalRequest(query='Roman architecture', rerank=False)
+    with db.factory() as session:
+        assert chunk_ranks(session, request, encoder)
+    with db.factory.begin() as session:
+        session.scalar(select(KnowledgeChunk)).content_hash = 'f' * 64
+    with db.factory() as session:
+        assert chunk_ranks(session, request, encoder) == []
+    assert embed_chunks(db.factory, encoder)['newly_embedded'] == 1
+    with db.factory() as session:
+        assert chunk_ranks(session, request, encoder)
+
+
+def test_embedding_cli_status_and_resume_use_real_storage(retrieval_postgres, city_factory, monkeypatch, capsys):
+    from app.retrieval import cli
+    from app.core.config import Settings
+    db = retrieval_postgres
+    with db.factory.begin() as session:
+        city = city_factory()
+        session.add(city)
+        ingest_page(session, city, city.name, 1, 1, datetime.now(timezone.utc), '== See ==\n' + TEXT, 'a' * 64, 0)
+    config = Settings(_env_file=None, database_url='postgresql+psycopg://test:test@localhost/test')
+    def encoder(name, revision, path, **options):
+        assert (name, revision) == (FakeEncoder.name, FakeEncoder.revision)
+        assert options == {'threads': 1, 'inference_batch_size': 1}
+        return FakeEncoder()
+    with patch.object(cli, 'Settings', return_value=config), patch.object(cli, 'create_db_engine', return_value=db.engine), patch.object(db.engine, 'dispose'):
+        arguments = ['retrieval', 'embed', '--model', FakeEncoder.name, '--revision', FakeEncoder.revision,
+                     '--model-path', 'unused-fixture', '--batch-size', '1', '--threads', '1', '--inference-batch-size', '1']
+        with patch('app.retrieval.embedding.LocalEncoder', side_effect=encoder):
+            monkeypatch.setattr('sys.argv', arguments)
+            cli.main()
+            first = capsys.readouterr()
+            assert json.loads(first.out)['newly_embedded'] == 1
+            assert first.err
+            cli.main()
+            resumed = json.loads(capsys.readouterr().out)
+            assert resumed['newly_embedded'] == 0 and resumed['skipped_unchanged'] == 1
+        with patch('app.retrieval.embedding.LocalEncoder', side_effect=AssertionError('Status must not load weights')):
+            monkeypatch.setattr('sys.argv', ['retrieval', 'embedding-status', '--model', FakeEncoder.name, '--revision', FakeEncoder.revision])
+            cli.main()
+            status = json.loads(capsys.readouterr().out)
+            assert status['total_chunks'] == status['already_embedded'] == 1
+            assert status['remaining'] == 0

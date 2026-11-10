@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 import hashlib
 import json
+import sys
 import httpx
 from sqlalchemy import select, func
 from sqlalchemy.orm import sessionmaker
@@ -61,6 +62,13 @@ def main():
     ingest.add_argument("--max-pages", type=int)
     commands.add_parser("stats")
     embed = commands.add_parser("embed")
+    embed.add_argument("--batch-size", type=int, default=64)
+    embed.add_argument("--threads", type=int, default=4)
+    embed.add_argument("--inference-batch-size", type=int, default=64)
+    embed.add_argument("--force", action="store_true", help="Atomically replace batches for this explicit model revision")
+    status = commands.add_parser("embedding-status")
+    status.add_argument("--model", default="BAAI/bge-small-en-v1.5")
+    status.add_argument("--revision", required=True)
     search = commands.add_parser("search")
     for command in [embed, search]:
         command.add_argument("--model", default="BAAI/bge-small-en-v1.5")
@@ -97,6 +105,9 @@ def main():
             if args.max_pages is not None and args.max_pages < 1:
                 parser.error("--max-pages must be positive")
             result = ingest_dump(factory, args.dump, args.max_pages)
+        elif args.command == "embedding-status":
+            from app.retrieval.embedding import embedding_status
+            result = embedding_status(factory, args.model, args.revision)
         elif args.command == "stats":
             from app.knowledge.models import KnowledgeChunk, KnowledgePage, KnowledgeEmbedding
             with factory() as session:
@@ -106,9 +117,11 @@ def main():
                     "embeddings": session.scalar(select(func.count()).select_from(KnowledgeEmbedding))}
         else:
             from app.retrieval.embedding import LocalEncoder, LocalReranker, embed_chunks
-            encoder = None if args.command == "search" and args.mode == "lexical" else LocalEncoder(args.model, args.revision, args.model_path)
+            encoder = None if args.command == "search" and args.mode == "lexical" else LocalEncoder(args.model, args.revision, args.model_path,
+                **({"threads":args.threads,"inference_batch_size":args.inference_batch_size} if args.command=="embed" else {}))
             if args.command == "embed":
-                result = embed_chunks(factory, encoder)
+                result = embed_chunks(factory, encoder, batch_size=args.batch_size, force=args.force,
+                    progress=lambda value: print(json.dumps(value), file=sys.stderr, flush=True))
             else:
                 from app.retrieval.service import retrieve, RetrievalRequest
                 reranker = LocalReranker(args.reranker_path, args.reranker_revision) if args.reranker_path else None

@@ -109,3 +109,7 @@ No free text is interpreted by an LLM. No Geoapify enrichment is automatic. The 
 ## Planned, not implemented
 
 Wikipedia/Wikidata fallbacks, multilingual corpora, full-catalog embedding operations at production scale, independent identity review, held-out relevance judgments, product-level shortlist integration, automatic approved shortlist enrichment, LLM/RAG answer generation, LangGraph, weather and itinerary generation are not part of this milestone.
+
+## Resumable corpus embeddings
+
+Migration 0007 records the chunk content hash represented by each vector. `embedding-status --model <model> --revision <revision>` reports compatible cached coverage without loading weights. `embed` resumes by default, skips matching content/model revisions, commits bounded batches, and reports progress to stderr. `--force` replaces only the explicitly selected model/revision in atomic batches; it does not delete other model versions. `--batch-size`, `--inference-batch-size` and `--threads` bound/configure CPU execution. Changed content is checked again under row locks before storing a computed vector. Exceptions stop the run; completed batches survive.

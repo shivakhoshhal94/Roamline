@@ -55,7 +55,8 @@ def chunk_ranks(session, request, encoder=None, query_vector=None, mode="dense",
             query_vector = encoder.encode([request.query], query=True)[0].tolist()
         distance = KnowledgeEmbedding.embedding.cosine_distance(query_vector)
         statement = statement.join(KnowledgeEmbedding, KnowledgeEmbedding.chunk_id == KnowledgeChunk.id).where(
-            KnowledgeEmbedding.model == encoder.name, KnowledgeEmbedding.revision == encoder.revision)
+            KnowledgeEmbedding.model == encoder.name, KnowledgeEmbedding.revision == encoder.revision,
+            KnowledgeEmbedding.content_hash == KnowledgeChunk.content_hash)
         statement = statement.add_columns((1 - distance).label("score"))
         # Exact remains correct even when an experimental ANN index exists.
         if exact:

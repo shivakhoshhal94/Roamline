@@ -48,5 +48,6 @@ class KnowledgeEmbedding(Base):
     chunk_id: Mapped[int] = mapped_column(ForeignKey("knowledge_chunks.id", ondelete="CASCADE"), primary_key=True)
     model: Mapped[str] = mapped_column(String(150), primary_key=True)
     revision: Mapped[str] = mapped_column(String(64), primary_key=True)
+    content_hash: Mapped[str] = mapped_column(String(64))
     embedding: Mapped[list[float]] = mapped_column(Vector(384))
     embedded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
