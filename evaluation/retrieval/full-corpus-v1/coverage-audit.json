@@ -1,0 +1,122 @@
+[
+  {
+    "title": "Banff",
+    "page_id": 2592,
+    "revision_id": 5394387,
+    "redirect": false,
+    "geo": [
+      51.178056,
+      -115.571944
+    ],
+    "matched_geoname_id": null,
+    "geo_templates": [
+      "{{geo|51.178056|-115.571944}}"
+    ]
+  },
+  {
+    "title": "Cusco",
+    "page_id": 8770,
+    "revision_id": 355190,
+    "redirect": true,
+    "geo": null,
+    "matched_geoname_id": null,
+    "geo_templates": []
+  },
+  {
+    "title": "Cuzco",
+    "page_id": 8796,
+    "revision_id": 5400925,
+    "redirect": false,
+    "geo": [
+      -13.525,
+      -71.972222
+    ],
+    "matched_geoname_id": null,
+    "geo_templates": [
+      "{{geo|-13.525000|-71.972222}}"
+    ]
+  },
+  {
+    "title": "Fes",
+    "page_id": 11567,
+    "revision_id": 461098,
+    "redirect": true,
+    "geo": null,
+    "matched_geoname_id": null,
+    "geo_templates": []
+  },
+  {
+    "title": "Fez",
+    "page_id": 11575,
+    "revision_id": 5402008,
+    "redirect": false,
+    "geo": [
+      34.03,
+      -5.01
+    ],
+    "matched_geoname_id": null,
+    "geo_templates": [
+      "{{geo|34.03|-5.01}}"
+    ]
+  },
+  {
+    "title": "Marrakech",
+    "page_id": 21485,
+    "revision_id": 5410691,
+    "redirect": false,
+    "geo": [
+      31.62594,
+      -7.98863
+    ],
+    "matched_geoname_id": null,
+    "geo_templates": [
+      "{{geo|31.62594|-7.98863|zoom=15}}"
+    ]
+  },
+  {
+    "title": "Nara",
+    "page_id": 23888,
+    "revision_id": 5412288,
+    "redirect": false,
+    "geo": [
+      34.6833,
+      135.8
+    ],
+    "matched_geoname_id": null,
+    "geo_templates": [
+      "{{geo|34.6833|135.8000}}"
+    ]
+  },
+  {
+    "title": "Queenstown",
+    "page_id": 28958,
+    "revision_id": 4880535,
+    "redirect": false,
+    "geo": null,
+    "matched_geoname_id": null,
+    "geo_templates": []
+  },
+  {
+    "title": "Zermatt",
+    "page_id": 40354,
+    "revision_id": 5301846,
+    "redirect": false,
+    "geo": [
+      46.016667,
+      7.75
+    ],
+    "matched_geoname_id": null,
+    "geo_templates": [
+      "{{Geo|46.016667|7.75}}"
+    ]
+  },
+  {
+    "title": "Marrakesh",
+    "page_id": 132795,
+    "revision_id": 2546307,
+    "redirect": true,
+    "geo": null,
+    "matched_geoname_id": null,
+    "geo_templates": []
+  }
+]

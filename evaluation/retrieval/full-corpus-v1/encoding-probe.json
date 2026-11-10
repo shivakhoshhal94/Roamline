@@ -1,0 +1,37 @@
+[
+  {
+    "threads": 1,
+    "batch_size": 16,
+    "chunks": 64,
+    "seconds": 23.354316800134256,
+    "chunks_per_second": 2.7403927311473346
+  },
+  {
+    "threads": 2,
+    "batch_size": 16,
+    "chunks": 64,
+    "seconds": 15.173810000065714,
+    "chunks_per_second": 4.217793685285557
+  },
+  {
+    "threads": 4,
+    "batch_size": 16,
+    "chunks": 64,
+    "seconds": 25.742961599957198,
+    "chunks_per_second": 2.486116438137654
+  },
+  {
+    "threads": 4,
+    "batch_size": 64,
+    "chunks": 64,
+    "seconds": 43.20736760017462,
+    "chunks_per_second": 1.4812288633788777
+  },
+  {
+    "threads": 8,
+    "batch_size": 16,
+    "chunks": 64,
+    "seconds": 23.27723650005646,
+    "chunks_per_second": 2.7494672745987163
+  }
+]

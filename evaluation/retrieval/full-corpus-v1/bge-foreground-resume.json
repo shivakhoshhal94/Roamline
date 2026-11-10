@@ -1,0 +1,61 @@
+{
+  "state": "complete",
+  "started_at": "2026-11-08T18:38:30.607170+00:00",
+  "starting": {
+    "total_chunks": 162610,
+    "already_embedded": 24816,
+    "remaining": 137794,
+    "vector_payload_bytes": 38117376,
+    "model": "BAAI/bge-small-en-v1.5",
+    "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a"
+  },
+  "cpu_threads": 2,
+  "inference_batch_size": 16,
+  "commit_batch_size": 512,
+  "progress": {
+    "total_chunks": 162610,
+    "already_embedded": 24816,
+    "remaining": 137794,
+    "vector_payload_bytes": 38117376,
+    "model": "BAAI/bge-small-en-v1.5",
+    "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+    "newly_embedded": 137794,
+    "estimated_remaining": 0,
+    "seconds": 74315.05560589978
+  },
+  "result": {
+    "total_chunks": 162610,
+    "already_embedded": 24816,
+    "remaining": 137794,
+    "vector_payload_bytes": 38117376,
+    "model": "BAAI/bge-small-en-v1.5",
+    "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+    "embedded_chunks": 137794,
+    "newly_embedded": 137794,
+    "skipped_unchanged": 24816,
+    "failed": 0,
+    "seconds": 74315.09629809973,
+    "chunks_per_second": 1.8541858500360102,
+    "dimension": 384,
+    "final_status": {
+      "total_chunks": 162610,
+      "already_embedded": 162610,
+      "remaining": 0,
+      "vector_payload_bytes": 249768960,
+      "model": "BAAI/bge-small-en-v1.5",
+      "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a"
+    }
+  },
+  "integrity": {
+    "stored": 162610,
+    "hash_mismatches": 0,
+    "invalid_dimensions": 0,
+    "invalid_norms": 0,
+    "nonfinite": 0,
+    "duplicates": 0,
+    "orphans": 0
+  },
+  "starting_records_preserved": 24816,
+  "e5_count_unchanged": 1264,
+  "finished_at": "2026-11-09T16:17:10.593846+00:00"
+}

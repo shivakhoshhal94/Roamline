@@ -1,0 +1,842 @@
+{
+  "version": "full-corpus-v1",
+  "description": "48 query prompts; 24 inherited project qrels are provisional development data. New prompts have no assistant-generated relevance grades. Human judgments required before expanded/held-out quality evaluation. Splits fixed before full-corpus results. No benchmark destination is removed for missing coverage.",
+  "grade_guide": {
+    "3": "strongly relevant",
+    "2": "relevant",
+    "1": "marginally relevant",
+    "0": "not relevant"
+  },
+  "queries": [
+    {
+      "id": "ancient",
+      "query": "Ancient history, archaeology, classical ruins and historic monuments.",
+      "relevance": [
+        {
+          "geoname_id": 3169070,
+          "city": "Rome",
+          "grade": 3
+        },
+        {
+          "geoname_id": 264371,
+          "city": "Athens",
+          "grade": 3
+        },
+        {
+          "geoname_id": 360502,
+          "city": "Luxor",
+          "grade": 3
+        },
+        {
+          "geoname_id": 360630,
+          "city": "Cairo",
+          "grade": 2
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "renaissance",
+      "query": "Renaissance art, painting museums and historic architecture.",
+      "relevance": [
+        {
+          "geoname_id": 3176959,
+          "city": "Florence",
+          "grade": 3
+        },
+        {
+          "geoname_id": 3164603,
+          "city": "Venice",
+          "grade": 2
+        },
+        {
+          "geoname_id": 3169070,
+          "city": "Rome",
+          "grade": 2
+        },
+        {
+          "geoname_id": 2988507,
+          "city": "Paris",
+          "grade": 1
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "beach-nightlife",
+      "query": "Beaches, lively bars, dancing and nightlife.",
+      "relevance": [
+        {
+          "geoname_id": 3451190,
+          "city": "Rio de Janeiro",
+          "grade": 3
+        },
+        {
+          "geoname_id": 3128760,
+          "city": "Barcelona",
+          "grade": 2
+        },
+        {
+          "geoname_id": 1838524,
+          "city": "Busan",
+          "grade": 2
+        },
+        {
+          "geoname_id": 2147714,
+          "city": "Sydney",
+          "grade": 2
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "street-food",
+      "query": "Street food, traditional markets and local restaurants.",
+      "relevance": [
+        {
+          "geoname_id": 1609350,
+          "city": "Bangkok",
+          "grade": 3
+        },
+        {
+          "geoname_id": 1581130,
+          "city": "Hanoi",
+          "grade": 3
+        },
+        {
+          "geoname_id": 3530597,
+          "city": "Mexico City",
+          "grade": 2
+        },
+        {
+          "geoname_id": 3522507,
+          "city": "Oaxaca",
+          "grade": 2
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "mountain-hiking",
+      "query": "Hiking trails, mountains and outdoor adventure.",
+      "relevance": [
+        {
+          "geoname_id": 2184868,
+          "city": "Queenstown",
+          "grade": 3
+        },
+        {
+          "geoname_id": 5892532,
+          "city": "Banff",
+          "grade": 3
+        },
+        {
+          "geoname_id": 3941584,
+          "city": "Cusco",
+          "grade": 2
+        },
+        {
+          "geoname_id": 2657928,
+          "city": "Zermatt",
+          "grade": 3
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "classical",
+      "query": "Classical music, concert halls, opera and museums.",
+      "relevance": [
+        {
+          "geoname_id": 2761369,
+          "city": "Vienna",
+          "grade": 3
+        },
+        {
+          "geoname_id": 2766824,
+          "city": "Salzburg",
+          "grade": 3
+        },
+        {
+          "geoname_id": 2950159,
+          "city": "Berlin",
+          "grade": 2
+        },
+        {
+          "geoname_id": 3067696,
+          "city": "Prague",
+          "grade": 2
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "historic-photo",
+      "query": "Photograph historic streets, bridges, old towns and architecture.",
+      "relevance": [
+        {
+          "geoname_id": 3067696,
+          "city": "Prague",
+          "grade": 3
+        },
+        {
+          "geoname_id": 745044,
+          "city": "Istanbul",
+          "grade": 3
+        },
+        {
+          "geoname_id": 3164603,
+          "city": "Venice",
+          "grade": 3
+        },
+        {
+          "geoname_id": 2548885,
+          "city": "Fes",
+          "grade": 2
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "modern",
+      "query": "Modern architecture, skyscrapers and innovative urban design.",
+      "relevance": [
+        {
+          "geoname_id": 4887398,
+          "city": "Chicago",
+          "grade": 3
+        },
+        {
+          "geoname_id": 1850147,
+          "city": "Tokyo",
+          "grade": 3
+        },
+        {
+          "geoname_id": 1880252,
+          "city": "Singapore",
+          "grade": 3
+        },
+        {
+          "geoname_id": 292223,
+          "city": "Dubai",
+          "grade": 3
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "temples",
+      "query": "Buddhist temples, shrines and traditional cultural heritage.",
+      "relevance": [
+        {
+          "geoname_id": 1857910,
+          "city": "Kyoto",
+          "grade": 3
+        },
+        {
+          "geoname_id": 1855612,
+          "city": "Nara",
+          "grade": 3
+        },
+        {
+          "geoname_id": 1609350,
+          "city": "Bangkok",
+          "grade": 2
+        },
+        {
+          "geoname_id": 1822214,
+          "city": "Siem Reap",
+          "grade": 3
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "winter",
+      "query": "Winter sports, skiing, snowboarding and mountain resorts.",
+      "relevance": [
+        {
+          "geoname_id": 2657928,
+          "city": "Zermatt",
+          "grade": 3
+        },
+        {
+          "geoname_id": 2775220,
+          "city": "Innsbruck",
+          "grade": 3
+        },
+        {
+          "geoname_id": 2128295,
+          "city": "Sapporo",
+          "grade": 2
+        },
+        {
+          "geoname_id": 5892532,
+          "city": "Banff",
+          "grade": 2
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "quiet-nature",
+      "query": "Quiet nature walks, gardens, scenic landscapes and outdoor spaces.",
+      "relevance": [
+        {
+          "geoname_id": 3413829,
+          "city": "Reykjavik",
+          "grade": 2
+        },
+        {
+          "geoname_id": 2193733,
+          "city": "Auckland",
+          "grade": 2
+        },
+        {
+          "geoname_id": 6173331,
+          "city": "Vancouver",
+          "grade": 3
+        },
+        {
+          "geoname_id": 3369157,
+          "city": "Cape Town",
+          "grade": 2
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "shopping",
+      "query": "Shopping districts, fashion, malls and busy urban lifestyle.",
+      "relevance": [
+        {
+          "geoname_id": 1819729,
+          "city": "Hong Kong",
+          "grade": 3
+        },
+        {
+          "geoname_id": 1835848,
+          "city": "Seoul",
+          "grade": 3
+        },
+        {
+          "geoname_id": 1850147,
+          "city": "Tokyo",
+          "grade": 3
+        },
+        {
+          "geoname_id": 292223,
+          "city": "Dubai",
+          "grade": 2
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "jazz",
+      "query": "Jazz clubs, live music and an active evening music scene.",
+      "relevance": [
+        {
+          "geoname_id": 4887398,
+          "city": "Chicago",
+          "grade": 3
+        },
+        {
+          "geoname_id": 5128581,
+          "city": "New York City",
+          "grade": 3
+        },
+        {
+          "geoname_id": 2988507,
+          "city": "Paris",
+          "grade": 2
+        },
+        {
+          "geoname_id": 2158177,
+          "city": "Melbourne",
+          "grade": 1
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "roman",
+      "query": "Roman architecture, amphitheatres and archaeological sites.",
+      "relevance": [
+        {
+          "geoname_id": 3169070,
+          "city": "Rome",
+          "grade": 3
+        },
+        {
+          "geoname_id": 264371,
+          "city": "Athens",
+          "grade": 1
+        },
+        {
+          "geoname_id": 745044,
+          "city": "Istanbul",
+          "grade": 2
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "markets",
+      "query": "Traditional souks, craft markets, street stalls and local food.",
+      "relevance": [
+        {
+          "geoname_id": 2542997,
+          "city": "Marrakesh",
+          "grade": 3
+        },
+        {
+          "geoname_id": 2548885,
+          "city": "Fes",
+          "grade": 3
+        },
+        {
+          "geoname_id": 360630,
+          "city": "Cairo",
+          "grade": 2
+        },
+        {
+          "geoname_id": 1609350,
+          "city": "Bangkok",
+          "grade": 2
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "art-museums",
+      "query": "Major art galleries, museums, exhibitions and painting collections.",
+      "relevance": [
+        {
+          "geoname_id": 2988507,
+          "city": "Paris",
+          "grade": 3
+        },
+        {
+          "geoname_id": 5128581,
+          "city": "New York City",
+          "grade": 3
+        },
+        {
+          "geoname_id": 2950159,
+          "city": "Berlin",
+          "grade": 3
+        },
+        {
+          "geoname_id": 2761369,
+          "city": "Vienna",
+          "grade": 2
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "latin-food",
+      "query": "Latin American culinary traditions, local markets and food culture.",
+      "relevance": [
+        {
+          "geoname_id": 3936456,
+          "city": "Lima",
+          "grade": 3
+        },
+        {
+          "geoname_id": 3522507,
+          "city": "Oaxaca",
+          "grade": 3
+        },
+        {
+          "geoname_id": 3530597,
+          "city": "Mexico City",
+          "grade": 3
+        },
+        {
+          "geoname_id": 3435910,
+          "city": "Buenos Aires",
+          "grade": 2
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "coast-photo",
+      "query": "Coastal photography, dramatic scenery, beaches and ocean views.",
+      "relevance": [
+        {
+          "geoname_id": 3369157,
+          "city": "Cape Town",
+          "grade": 3
+        },
+        {
+          "geoname_id": 3451190,
+          "city": "Rio de Janeiro",
+          "grade": 3
+        },
+        {
+          "geoname_id": 2147714,
+          "city": "Sydney",
+          "grade": 3
+        },
+        {
+          "geoname_id": 2193733,
+          "city": "Auckland",
+          "grade": 2
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "history-asia",
+      "query": "Asian history, traditional streets, temples and cultural museums.",
+      "relevance": [
+        {
+          "geoname_id": 1857910,
+          "city": "Kyoto",
+          "grade": 3
+        },
+        {
+          "geoname_id": 1835848,
+          "city": "Seoul",
+          "grade": 2
+        },
+        {
+          "geoname_id": 1581130,
+          "city": "Hanoi",
+          "grade": 3
+        },
+        {
+          "geoname_id": 1822214,
+          "city": "Siem Reap",
+          "grade": 2
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "cafes",
+      "query": "Cafe culture, walkable historic streets and restaurants.",
+      "relevance": [
+        {
+          "geoname_id": 2761369,
+          "city": "Vienna",
+          "grade": 3
+        },
+        {
+          "geoname_id": 2158177,
+          "city": "Melbourne",
+          "grade": 3
+        },
+        {
+          "geoname_id": 2988507,
+          "city": "Paris",
+          "grade": 3
+        },
+        {
+          "geoname_id": 2267057,
+          "city": "Lisbon",
+          "grade": 2
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "parks-city",
+      "query": "Urban parks, gardens, museums and easy access to nature.",
+      "relevance": [
+        {
+          "geoname_id": 1880252,
+          "city": "Singapore",
+          "grade": 3
+        },
+        {
+          "geoname_id": 6173331,
+          "city": "Vancouver",
+          "grade": 3
+        },
+        {
+          "geoname_id": 2193733,
+          "city": "Auckland",
+          "grade": 2
+        },
+        {
+          "geoname_id": 2673730,
+          "city": "Stockholm",
+          "grade": 2
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "waterfront",
+      "query": "Harbours, waterfront walks, ferries and urban photography.",
+      "relevance": [
+        {
+          "geoname_id": 2147714,
+          "city": "Sydney",
+          "grade": 3
+        },
+        {
+          "geoname_id": 1819729,
+          "city": "Hong Kong",
+          "grade": 3
+        },
+        {
+          "geoname_id": 2673730,
+          "city": "Stockholm",
+          "grade": 3
+        },
+        {
+          "geoname_id": 2618425,
+          "city": "Copenhagen",
+          "grade": 2
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "dance",
+      "query": "Tango, dance culture, live music and nightlife.",
+      "relevance": [
+        {
+          "geoname_id": 3435910,
+          "city": "Buenos Aires",
+          "grade": 3
+        },
+        {
+          "geoname_id": 3450554,
+          "city": "Salvador",
+          "grade": 2
+        },
+        {
+          "geoname_id": 3451190,
+          "city": "Rio de Janeiro",
+          "grade": 2
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "food-modern",
+      "query": "Contemporary architecture, museums and diverse food markets.",
+      "relevance": [
+        {
+          "geoname_id": 1850147,
+          "city": "Tokyo",
+          "grade": 3
+        },
+        {
+          "geoname_id": 4887398,
+          "city": "Chicago",
+          "grade": 3
+        },
+        {
+          "geoname_id": 1880252,
+          "city": "Singapore",
+          "grade": 3
+        },
+        {
+          "geoname_id": 1835848,
+          "city": "Seoul",
+          "grade": 2
+        }
+      ],
+      "split": "development",
+      "judgment_status": "legacy_project_judgments_previously_exposed"
+    },
+    {
+      "id": "review-roman-small",
+      "query": "Roman ruins and archaeology in a smaller destination rather than a large capital.",
+      "split": "held_out",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    },
+    {
+      "id": "review-art-workshops",
+      "query": "Local artists, galleries and hands-on craft workshops.",
+      "split": "development",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    },
+    {
+      "id": "review-quiet-coast",
+      "query": "Quiet coastal walks and small museums; avoid nightlife and party districts.",
+      "split": "held_out",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    },
+    {
+      "id": "review-night-markets",
+      "query": "Lively night markets, inexpensive local food and late-night street life.",
+      "split": "development",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    },
+    {
+      "id": "review-family-science",
+      "query": "A family trip centered on interactive science museums and easy public transport.",
+      "split": "held_out",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    },
+    {
+      "id": "review-moderate-gardens",
+      "query": "A relaxed trip with botanical gardens, gentle walks and caf\u00e9s rather than strenuous hikes.",
+      "split": "development",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    },
+    {
+      "id": "review-active-volcano",
+      "query": "Active hiking around volcanoes and dramatic landscapes.",
+      "split": "held_out",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    },
+    {
+      "id": "review-traditional-ports",
+      "query": "Historic harbor neighborhoods, maritime heritage and seafood.",
+      "split": "development",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    },
+    {
+      "id": "review-african-music",
+      "query": "Live African music, cultural history and local food markets.",
+      "split": "held_out",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    },
+    {
+      "id": "review-andean-culture",
+      "query": "Andean culture, traditional markets and mountain scenery.",
+      "split": "development",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    },
+    {
+      "id": "review-pacific-culture",
+      "query": "Pacific island heritage, community museums and coastal scenery.",
+      "split": "held_out",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    },
+    {
+      "id": "review-japanese-crafts",
+      "query": "Japanese traditional crafts, old wooden streets and regional food.",
+      "split": "development",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    },
+    {
+      "id": "review-modernism",
+      "query": "Modernist architecture and urban design beyond the main tourist capitals.",
+      "split": "held_out",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    },
+    {
+      "id": "review-desert-heritage",
+      "query": "Desert landscapes, old trading towns and historic architecture.",
+      "split": "development",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    },
+    {
+      "id": "review-winter-no-ski",
+      "query": "Snowy scenery and cozy cultural activities without downhill skiing.",
+      "split": "held_out",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    },
+    {
+      "id": "review-ski-small",
+      "query": "A smaller winter-sports base with downhill skiing and mountain access.",
+      "split": "development",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    },
+    {
+      "id": "review-museums-rail",
+      "query": "A museum-focused city trip with convenient rail travel.",
+      "split": "held_out",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    },
+    {
+      "id": "review-photo-water",
+      "query": "Photography around canals, waterfronts and historic neighborhoods.",
+      "split": "development",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    },
+    {
+      "id": "review-food-regional",
+      "query": "Distinctive regional cuisine, traditional bakeries and local markets.",
+      "split": "held_out",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    },
+    {
+      "id": "review-shopping-craft",
+      "query": "Independent shops, textiles and traditional craft markets rather than luxury malls.",
+      "split": "development",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    },
+    {
+      "id": "review-forest-quiet",
+      "query": "Forest walks, quiet nature and a slower pace instead of busy nightlife.",
+      "split": "held_out",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    },
+    {
+      "id": "review-beach-active",
+      "query": "Beaches with surfing and outdoor activities.",
+      "split": "development",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    },
+    {
+      "id": "review-history-africa",
+      "query": "African precolonial history, archaeological sites and cultural heritage.",
+      "split": "held_out",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    },
+    {
+      "id": "review-music-americas",
+      "query": "Local music traditions, historic streets and food in the Americas.",
+      "split": "development",
+      "judgment_status": "awaiting_human_review",
+      "relevance": []
+    }
+  ]
+}

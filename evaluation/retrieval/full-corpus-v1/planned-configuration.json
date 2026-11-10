@@ -1,0 +1,47 @@
+{
+  "chunk_limit": 3000,
+  "top_k": 150,
+  "candidates": 150,
+  "aggregations": [
+    "best",
+    "top2mean",
+    "top3mean"
+  ],
+  "selection_order": [
+    "development Recall@100",
+    "development Recall@20",
+    "development nDCG@10",
+    "lower p95 latency"
+  ],
+  "reranker_sizes": [
+    20,
+    50
+  ],
+  "reranker_min_ndcg_gain": 0.01,
+  "reranker_max_added_p95_seconds": 1.0,
+  "paid_api_calls": 0,
+  "note": "No product integration. No assistant-generated new relevance grades.",
+  "version": "full-corpus-v1",
+  "pending_human_review": true,
+  "embedding_execution": {
+    "cpu_threads": 2,
+    "inference_batch_size": 16,
+    "commit_batch_size": 512,
+    "backend": "pytorch-float32"
+  },
+  "query_execution": {
+    "cpu_threads": 4,
+    "backend": "pytorch-float32"
+  },
+  "default_choice_status": "pending full-corpus experiments and human-reviewed held-out validation",
+  "ann_min_destination_recall_20": 0.99,
+  "ann_min_destination_recall_100": 0.98,
+  "ann_p50_ratio": 0.7,
+  "ann_p95_ratio": 0.8,
+  "embedding_api_cost": 0,
+  "reranking_api_cost": 0,
+  "paid_data_api_cost": 0,
+  "rrf_k": 60,
+  "ann_pipeline_p95_ratio": 0.9,
+  "ann_pipeline_max_quality_loss": 0.01
+}

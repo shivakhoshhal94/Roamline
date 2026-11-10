@@ -15,8 +15,8 @@ class RetrievalRequest(BaseModel):
     countries: list[str] = []
     continents: list[str] = []
     min_population: int = Field(default=0, ge=0)
-    top_k: int = Field(default=10, ge=1, le=50)
-    candidates: int = Field(default=50, ge=1, le=100)
+    top_k: int = Field(default=10, ge=1, le=150)
+    candidates: int = Field(default=50, ge=1, le=150)
     rerank: bool = True
 
     @field_validator("query")
@@ -88,7 +88,7 @@ def chunk_ranks(session, request, encoder=None, query_vector=None, mode="dense",
 
 
 def destination_ranks(rows, policy="best"):
-    if policy not in {"best", "top3mean"}:
+    if policy not in {"best", "top2mean", "top3mean"}:
         raise ValueError("Unknown aggregation policy")
     # Best-ranked chunk establishes each city's rank; at most three supporting
     # chunks are retained. Long district-rich cities do not gain votes per chunk.
@@ -103,9 +103,9 @@ def destination_ranks(rows, policy="best"):
                 "text": chunk.text, "chunk_score": float(score), "source": page.source, "title": page.title, "page_id": page.source_page_id,
                 "revision_id": page.revision_id, "url": page.source_url, "license": page.license,
                 "content_hash": chunk.content_hash, "ingested_at": page.ingested_at.isoformat()})
-    if policy == "top3mean":
+    if policy in {"top2mean", "top3mean"}:
         for item in cities.values():
-            item["score"] = sum(e["chunk_score"] for e in item["evidence"])/len(item["evidence"])
+            item["score"] = sum(e["chunk_score"] for e in item["evidence"][:int(policy[3])])/len(item["evidence"][:int(policy[3])])
         cities = dict(sorted(cities.items(), key=lambda pair: (-pair[1]["score"], int(pair[0]))))
     return cities
 
@@ -123,21 +123,52 @@ def fuse_destinations(dense, lexical):
     return dict(rrf(inputs, k=60).to_dict()["q"])
 
 
-def retrieve(session, request, encoder=None, reranker=None, mode="hybrid", query_vector=None, exact=True, aggregation="best", corpus_ids=None):
+def retrieve(session, request, encoder=None, reranker=None, mode="hybrid", query_vector=None, exact=True, aggregation="best", corpus_ids=None, dense_k=None, lexical_k=None, rerank_limit=None, chunk_limit=None):
     if request.candidates < request.top_k:
         raise ValueError("candidates must be at least top_k")
-    if mode not in {"lexical", "dense", "hybrid"}:
+    if mode not in {"lexical", "dense", "hybrid", "union", "high_recall_union"}:
         raise ValueError("Unknown retrieval mode")
     started = perf_counter()
-    # Overfetch chunks to build destination pools, rather than awarding cities
-    # more score merely for having many chunks. Expose pool size for evaluation.
-    dense = destination_ranks(chunk_ranks(session, request, encoder, query_vector, "dense", exact, max(500, request.candidates*20), corpus_ids), aggregation) if mode != "lexical" else {}
-    lexical = destination_ranks(chunk_ranks(session, request, mode="lexical", limit=max(500, request.candidates*20), corpus_ids=corpus_ids), aggregation) if mode != "dense" else {}
+    timings = {key: 0.0 for key in ["query_embedding", "dense_database", "lexical_database", "aggregation", "fusion", "reranker"]}
+    dense_rows, lexical_rows = [], []
+    chunk_limit = max(500, request.candidates*20) if chunk_limit is None else chunk_limit
+    if not 1 <= chunk_limit <= 10000:
+        raise ValueError("Chunk candidate limit must be 1..10000")
+    if mode != "lexical":
+        before = perf_counter()
+        if encoder is None:
+            raise ValueError("Dense retrieval requires a versioned encoder")
+        if query_vector is None:
+            query_vector = encoder.encode([request.query], query=True)[0].tolist()
+        timings["query_embedding"] = perf_counter()-before
+        before = perf_counter()
+        dense_rows = chunk_ranks(session, request, encoder, query_vector, "dense", exact, chunk_limit, corpus_ids)
+        timings["dense_database"] = perf_counter()-before
+    if mode != "dense":
+        before = perf_counter()
+        lexical_rows = chunk_ranks(session, request, mode="lexical", limit=chunk_limit, corpus_ids=corpus_ids)
+        timings["lexical_database"] = perf_counter()-before
+    before = perf_counter()
+    dense = destination_ranks(dense_rows, aggregation)
+    lexical = destination_ranks(lexical_rows, aggregation)
+    if mode == "high_recall_union":
+        dense_k, lexical_k = 100, 50
+    if dense_k is not None:
+        dense = dict(list(dense.items())[:dense_k])
+    if lexical_k is not None:
+        lexical = dict(list(lexical.items())[:lexical_k])
+    timings["aggregation"] = perf_counter()-before
+    before = perf_counter()
     if mode == "hybrid":
         scores = fuse_destinations(dense, lexical)
+    elif mode in {"union", "high_recall_union"}:
+        # Rank-interleaved set union: no incomparable dense/FTS score weighting.
+        order = dict.fromkeys(key for pair in zip_longest(dense, lexical) for key in pair if key is not None)
+        scores = {key: float(len(order)-rank) for rank, key in enumerate(order)}
     else:
         channel = dense if mode == "dense" else lexical
         scores = {key: item["score"] for key, item in channel.items()}
+    timings["fusion"] = perf_counter()-before
     dense_order, lexical_order = list(dense), list(lexical)
     keys = sorted(scores, key=lambda key: (-scores[key], int(key)))[:request.candidates]
     results = []
@@ -160,20 +191,30 @@ def retrieve(session, request, encoder=None, reranker=None, mode="hybrid", query
         if reranker is None:
             raise ValueError("Reranking requested without a local reranker")
         before = perf_counter()
-        pairs = ["\n".join(item["text"][:600] for item in result["evidence"]) for result in results]
+        limit = max(1, len(results)) if rerank_limit is None else rerank_limit
+        if not 1 <= limit <= 100:
+            raise ValueError("Reranker candidate limit must be 1..100")
+        selected, tail = results[:limit], results[limit:]
+        pairs = ["\n".join(item["text"][:600] for item in result["evidence"]) for result in selected]
         values = reranker.score(request.query, pairs) if pairs else []
-        if len(values) != len(results) or any(not math.isfinite(float(value)) for value in values):
+        if len(values) != len(selected) or any(not math.isfinite(float(value)) for value in values):
             raise ValueError("Invalid reranker output")
-        for result, value in zip(results, values, strict=True):
+        for result, value in zip(selected, values, strict=True):
             result["reranker_score"] = float(value)
-        results.sort(key=lambda item: (-item["reranker_score"], -item["retrieval_score"], item["geoname_id"]))
+        selected.sort(key=lambda item: (-item["reranker_score"], -item["retrieval_score"], item["geoname_id"]))
+        results = selected + tail
         reranking_seconds = perf_counter()-before
+        timings["reranker"] = reranking_seconds
     for rank, result in enumerate(results, 1):
         result["rank"] = rank
         result.pop("score", None)
         for evidence in result["evidence"]:
             evidence.pop("text", None)
-    return {"results": results[:request.top_k], "candidate_count": len(results), "retrieval_seconds": retrieval_seconds,
+    timings["total"] = perf_counter()-started
+    timings["other"] = max(0.0, timings["total"]-sum(value for key,value in timings.items() if key!="total"))
+    return {"timings": timings, "chunk_hits": {"dense": len(dense_rows), "lexical": len(lexical_rows)},
+            "channel_destination_counts": {"dense": len(dense), "lexical": len(lexical)},
+            "union_destination_count": len(set(dense) | set(lexical)), "results": results[:request.top_k], "candidate_count": len(results), "retrieval_seconds": retrieval_seconds,
             "reranking_seconds": reranking_seconds, "total_seconds": perf_counter()-started,
             "scope": "worldwide" if not request.countries and not request.continents else "explicit_geographic_filter",
             "score_type": "retrieval relevance; separate from product recommendation score",

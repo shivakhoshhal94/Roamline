@@ -211,6 +211,7 @@ The current English Wikivoyage import contains 10,142 usable pages for 9,026 des
 
 Only 29 of 49 judged destinations were present in the 256-destination cohort. Full-corpus retrieval evaluation remains pending. CrossEncoder reranking currently reduces measured nDCG while adding substantial CPU latency, so it is optional/experimental, not production-ready reranking. The Geoapify recommendation endpoint remains unchanged; the new product discovery paths use guide retrieval without a personal-match score. LLM/RAG generation and LangGraph are not implemented.
 
+Full BGE embedding is complete for all 162,610 usable chunks / 9,026 destinations. The [ungraded human-review candidate worksheet](evaluation/retrieval/full-corpus-v1/human-review.csv) now contains 1,036 pooled query-destination pairs for the 24 new prompts, with country and stored revision URLs. The original template is preserved, system scores are separate from grading columns, and no relevance judgments were assigned. Full E5 encoding, reranking experiments, expanded/held-out quality evaluation have not been performed in that corpus/pooling step. The separate product integration is documented below. See [pool composition and provenance](evaluation/retrieval/full-corpus-v1/human-review-pool-report.md).
 ## Product discovery integration
 
 Both product journeys now reuse the same local BGE/pgvector, PostgreSQL lexical

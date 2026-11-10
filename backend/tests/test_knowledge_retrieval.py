@@ -219,11 +219,11 @@ def test_reranker_bad_output_is_rejected(retrieval_postgres, city_factory):
 
 
 def test_model_download_is_explicit_pinned_and_mocked(tmp_path):
-    from app.retrieval.embedding import download_models, MODEL_REVISIONS
+    from app.retrieval.embedding import download_models, MODEL_REVISIONS, SMALL_RERANKER
     local=tmp_path/"snapshot";local.mkdir();(local/"config.json").write_text("{}")
     with patch("huggingface_hub.snapshot_download",return_value=str(local)) as download:
         registry=download_models(tmp_path/"models")
-    assert set(registry)==set(MODEL_REVISIONS)
+    assert set(registry)==set(MODEL_REVISIONS)-{SMALL_RERANKER}
     assert download.call_count==3
     assert all(call.kwargs["revision"] in MODEL_REVISIONS.values() and call.kwargs["token"] is False for call in download.call_args_list)
     assert (tmp_path/"models/registry.json").exists()
@@ -294,6 +294,132 @@ def test_embedding_interruption_resume_hash_versions_and_force(retrieval_postgre
     assert embedding_status(db.factory,encoder.name,encoder.revision)['already_embedded']==3
 
 
+def test_union_deduplicates_geography_and_reranker_is_bounded(retrieval_postgres,city_factory):
+    from app.retrieval.embedding import embed_chunks
+    db=retrieval_postgres
+    with db.factory.begin() as session:
+        for identifier,country,continent in [(1,'IT','EU'),(2,'JP','AS'),(3,'BR','SA')]:
+            city=city_factory(identifier,country_code=country,continent_code=continent);session.add(city)
+            ingest_page(session,city,city.name,identifier,1,datetime.now(timezone.utc),'== See ==\n'+TEXT,'a'*64,0)
+    encoder=FakeEncoder();embed_chunks(db.factory,encoder)
+    class Bounded:
+        def score(self,query,documents):
+            assert len(documents)==2
+            return [0,1]
+    with db.factory() as session:
+        result=retrieve(session,RetrievalRequest(query='Roman architecture',top_k=3,candidates=3),encoder,Bounded(),mode='union',rerank_limit=2)
+        assert len({v['geoname_id'] for v in result['results']})==3
+        assert {v['continent'] for v in result['results']}=={'EU','AS','SA'}
+        assert sum(v['reranker_score'] is not None for v in result['results'])==2
+        assert result['union_destination_count']==3
+        assert result['timings']['total']>=result['timings']['reranker']
+        for aggregation in ['best','top2mean','top3mean']:
+            actual=retrieve(session,RetrievalRequest(query='Roman architecture',top_k=3,candidates=3,rerank=False),encoder,mode='high_recall_union',aggregation=aggregation)
+            assert len(actual['results'])==3
+            assert actual['chunk_hits']['dense']>0
+
+
+def test_top_two_aggregation_is_a_real_ablation(city_factory):
+    city=city_factory();page=SimpleNamespace(source='wikivoyage',title='City',source_page_id=1,revision_id=1,source_url='https://example.org',license='CC BY-SA 4.0',ingested_at=datetime.now(timezone.utc))
+    rows=[(SimpleNamespace(id=i,section='See',text=TEXT,content_hash='a'*64),page,city,value) for i,value in enumerate([1,.8,.1])]
+    assert destination_ranks(rows,'top2mean')['1']['score']==pytest.approx(.9)
+    assert destination_ranks(rows,'top3mean')['1']['score']==pytest.approx(1.9/3)
+
+
+def test_evaluation_split_requires_human_held_out_judgments():
+    from app.retrieval.full_evaluate import split_queries,selection_key
+    legacy={'id':'old','split':'development','judgment_status':'legacy','relevance':[{'geoname_id':1,'grade':3}]}
+    proposed={'id':'new','split':'held_out','judgment_status':'awaiting_human_review','relevance':[]}
+    dev,held,pending=split_queries({'queries':[legacy,proposed]})
+    assert dev==[legacy] and held==[] and pending==[proposed]
+    proposed=dict(proposed,judgment_status='human_reviewed',relevance=[{'geoname_id':2,'grade':2}])
+    assert split_queries({'queries':[legacy,proposed]})[1]==[proposed]
+    with pytest.raises(ValueError,match='human_reviewed'):
+        split_queries({'queries':[dict(proposed,judgment_status='assistant_proposed')]})
+    with pytest.raises(ValueError,match='Development judgments'):
+        split_queries({'queries':[dict(proposed,split='development',judgment_status='assistant_proposed')]})
+    value={'metrics':{'recall@100':.5,'recall@20':.2,'ndcg@10':.3},'timings':{'total':{'p95':1}}}
+    assert selection_key(value)==selection_key(value)
+
+
+def test_full_benchmark_split_is_frozen_and_new_grades_are_empty():
+    from pathlib import Path
+    root=Path(__file__).resolve().parents[2]
+    document=json.loads((root/'evaluation/retrieval/full-corpus-v1/queries-review.json').read_text(encoding='utf-8'))
+    split=json.loads((root/'evaluation/retrieval/full-corpus-v1/splits.json').read_text(encoding='utf-8'))
+    assert 40<=len(document['queries'])<=60
+    assert set(split['development']).isdisjoint(split['held_out'])
+    assert set(split['development'])|set(split['held_out'])=={q['id'] for q in document['queries']}
+    assert all(not q['relevance'] for q in document['queries'] if q['judgment_status']=='awaiting_human_review')
+
+
+def test_full_evaluation_refuses_partial_indexes_before_loading_models(retrieval_postgres,city_factory,tmp_path):
+    from app.retrieval.full_evaluate import benchmark
+    from app.retrieval.embedding import MODELS
+    db=retrieval_postgres
+    with db.factory.begin() as session:
+        city=city_factory();session.add(city)
+        ingest_page(session,city,city.name,1,1,datetime.now(timezone.utc),'== See ==\n'+TEXT,'a'*64,0)
+    source=tmp_path/'qrels.json';source.write_text(json.dumps({'queries':[{'id':'q','query':'Roman architecture','split':'development','judgment_status':'legacy','relevance':[{'geoname_id':1,'grade':3}]}]}))
+    registry={name:{'revision':'a'*40,'path':'unused'} for name in MODELS}
+    with patch('app.retrieval.full_evaluate.LocalEncoder',side_effect=AssertionError('No weights loaded')):
+        with pytest.raises(ValueError,match='embedding incomplete'):
+            benchmark(db.factory,registry,source,tmp_path/'output')
+
+
+def test_native_hnsw_experiment_is_removed_after_comparison(retrieval_postgres,city_factory):
+    from app.retrieval.full_ann import compare_ann
+    from app.retrieval.embedding import embed_chunks
+    db=retrieval_postgres
+    with db.factory.begin() as session:
+        city=city_factory();session.add(city)
+        ingest_page(session,city,city.name,1,1,datetime.now(timezone.utc),'== See ==\n'+TEXT,'a'*64,0)
+    encoder=FakeEncoder();embed_chunks(db.factory,encoder)
+    result=compare_ann(db.factory,[{'id':'q','query':'Roman architecture','relevance':[{'geoname_id':1,'grade':3}]}],encoder,{'mode':'hybrid'})
+    assert result['pipeline_hnsw']['metrics']['recall@100']==1
+    assert result['experimental_index_removed'] and result['hnsw_index_used']
+    assert result['index_bytes']>0
+    assert result['recall_against_exact']['chunks']['20']==1
+    with db.factory() as session:
+        assert not session.scalar(text("SELECT count(*) FROM pg_indexes WHERE schemaname=:schema AND indexname='ix_knowledge_full_ann_experiment'"),{'schema':db.engine.get_execution_options()['schema_translate_map'][None]})
+
+
+def test_review_import_preserves_split_and_requires_reviewer(tmp_path):
+    from app.retrieval.full_evaluate import import_human_review
+    import csv
+    dataset=tmp_path/'queries.json';worksheet=tmp_path/'review.csv'
+    dataset.write_text(json.dumps({'queries':[{'id':'q','query':'Historic streets','split':'held_out','judgment_status':'awaiting_human_review','relevance':[]}]}))
+    fields=['query_id','query','split','geoname_id','city','grade_0_to_3','evidence_revision_url','reviewer','notes']
+    values=['q','Historic streets','held_out',1,'City',3,'https://example.org','','Human test fixture']
+    with worksheet.open('w',newline='') as f:
+        writer=csv.writer(f);writer.writerow(fields);writer.writerow(values)
+    with pytest.raises(ValueError,match='reviewer'):import_human_review(worksheet,dataset)
+    values[7]='test reviewer'
+    with worksheet.open('w',newline='') as f:
+        writer=csv.writer(f);writer.writerow(fields);writer.writerow(values)
+    assert import_human_review(worksheet,dataset)==1
+    actual=json.loads(dataset.read_text())['queries'][0]
+    assert actual['split']=='held_out' and actual['judgment_status']=='human_reviewed'
+
+
+def test_full_system_runs_are_deterministic_with_fake_encoder(retrieval_postgres,city_factory):
+    from app.retrieval.full_evaluate import run_system
+    from app.retrieval.embedding import embed_chunks
+    db=retrieval_postgres
+    with db.factory.begin() as session:
+        for identifier in [2,1]:
+            city=city_factory(identifier);session.add(city)
+            body=TEXT if identifier==1 else 'Temples and traditional gardens provide cultural experiences. '*10
+            ingest_page(session,city,city.name,identifier,1,datetime.now(timezone.utc),'== See ==\n'+body,'a'*64,0)
+    encoder=FakeEncoder();embed_chunks(db.factory,encoder)
+    queries=[{'id':'roman','query':'Roman architecture','relevance':[{'geoname_id':1,'grade':3}]}]
+    first=run_system(db.factory,queries,encoder,{'mode':'union','dense_k':100,'lexical_k':50})
+    second=run_system(db.factory,queries,encoder,{'mode':'union','dense_k':100,'lexical_k':50})
+    assert first['runs']==second['runs']
+    assert first['metrics']['recall@100']==1 and first['metrics']['ndcg@10']==1
+    assert first['per_query']['roman']['destination_count']==2
+
+
 def test_encoding_race_never_persists_a_vector_for_changed_content(retrieval_postgres,city_factory):
     from app.retrieval.embedding import embed_chunks
     db=retrieval_postgres
@@ -311,6 +437,44 @@ def test_encoding_race_never_persists_a_vector_for_changed_content(retrieval_pos
         assert session.scalar(select(func.count()).select_from(KnowledgeEmbedding))==0
     assert embed_chunks(db.factory,FakeEncoder())['newly_embedded']==1
 
+
+def test_full_benchmark_checkpoints_without_network_or_model_weights(retrieval_postgres,city_factory,tmp_path):
+    from app.retrieval import full_evaluate as evaluation
+    from app.retrieval.embedding import embed_chunks,MODELS,RERANKER,SMALL_RERANKER
+    db=retrieval_postgres
+    with db.factory.begin() as session:
+        for identifier in [1,2]:
+            city=city_factory(identifier);session.add(city)
+            ingest_page(session,city,city.name,identifier,1,datetime.now(timezone.utc),'== See ==\n'+TEXT,'a'*64,0)
+    class LocalFake(FakeEncoder):
+        def __init__(self,name,revision,path):self.name=name;self.revision=revision
+    registry={name:{'revision':'a'*40,'path':'unused','bytes':123} for name in [*MODELS,RERANKER,SMALL_RERANKER]}
+    for name in MODELS:embed_chunks(db.factory,LocalFake(name,'a'*40,'unused'))
+    source=tmp_path/'qrels.json';source.write_text(json.dumps({'queries':[
+        {'id':'dev','query':'Roman architecture','split':'development','judgment_status':'legacy','relevance':[{'geoname_id':1,'city':'City 1','grade':3}]},
+        {'id':'held','query':'Quiet coastal walks','split':'held_out','judgment_status':'awaiting_human_review','relevance':[]}]}))
+    output=tmp_path/'results'
+    with patch.object(evaluation,'LocalEncoder',LocalFake),patch.object(evaluation,'LocalReranker',side_effect=lambda *args:FakeReranker()),patch('app.retrieval.full_ann.compare_ann',return_value={'test_stub':True}):
+        first=evaluation.benchmark(db.factory,registry,source,output)
+        assert len(first['systems'])>=20
+        assert first['held_out']['status']=='pending_human_judgments'
+        assert first['selection']['held_out_accessed_for_selection'] is False
+        assert (output/'latency.json').exists() and (output/'summary.md').exists()
+        with patch.object(evaluation,'run_system',side_effect=AssertionError('Cached experiments must not repeat')):
+            resumed=evaluation.benchmark(db.factory,registry,source,output)
+        assert first['selection']==resumed['selection']
+        source.write_text(source.read_text().replace('Roman architecture','Roman history'))
+        with pytest.raises(ValueError,match='Dataset/config changed'):
+            evaluation.benchmark(db.factory,registry,source,output)
+
+
+def test_empty_retrieval_is_scored_as_a_miss_without_synthetic_documents():
+    from app.retrieval.full_evaluate import metrics
+    queries=[{'id':key,'relevance':[{'geoname_id':1,'grade':3}]} for key in ['a','b']]
+    empty=metrics(queries,{'a':{},'b':{}})
+    assert all(value==0 for value in empty.values())
+    partial=metrics(queries,{'a':{'1':1.0},'b':{}})
+    assert partial['recall@20']==.5 and partial['mrr']==.5
 
 def test_hash_mismatched_embeddings_are_not_retrieved(retrieval_postgres, city_factory):
     from app.retrieval.embedding import embed_chunks

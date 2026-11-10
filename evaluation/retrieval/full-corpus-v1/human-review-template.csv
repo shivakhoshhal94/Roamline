@@ -1,0 +1,25 @@
+query_id,query,split,geoname_id,city,grade_0_to_3,evidence_revision_url,reviewer,notes
+review-roman-small,Roman ruins and archaeology in a smaller destination rather than a large capital.,held_out,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.
+review-art-workshops,"Local artists, galleries and hands-on craft workshops.",development,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.
+review-quiet-coast,Quiet coastal walks and small museums; avoid nightlife and party districts.,held_out,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.
+review-night-markets,"Lively night markets, inexpensive local food and late-night street life.",development,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.
+review-family-science,A family trip centered on interactive science museums and easy public transport.,held_out,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.
+review-moderate-gardens,"A relaxed trip with botanical gardens, gentle walks and cafés rather than strenuous hikes.",development,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.
+review-active-volcano,Active hiking around volcanoes and dramatic landscapes.,held_out,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.
+review-traditional-ports,"Historic harbor neighborhoods, maritime heritage and seafood.",development,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.
+review-african-music,"Live African music, cultural history and local food markets.",held_out,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.
+review-andean-culture,"Andean culture, traditional markets and mountain scenery.",development,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.
+review-pacific-culture,"Pacific island heritage, community museums and coastal scenery.",held_out,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.
+review-japanese-crafts,"Japanese traditional crafts, old wooden streets and regional food.",development,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.
+review-modernism,Modernist architecture and urban design beyond the main tourist capitals.,held_out,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.
+review-desert-heritage,"Desert landscapes, old trading towns and historic architecture.",development,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.
+review-winter-no-ski,Snowy scenery and cozy cultural activities without downhill skiing.,held_out,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.
+review-ski-small,A smaller winter-sports base with downhill skiing and mountain access.,development,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.
+review-museums-rail,A museum-focused city trip with convenient rail travel.,held_out,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.
+review-photo-water,"Photography around canals, waterfronts and historic neighborhoods.",development,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.
+review-food-regional,"Distinctive regional cuisine, traditional bakeries and local markets.",held_out,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.
+review-shopping-craft,"Independent shops, textiles and traditional craft markets rather than luxury malls.",development,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.
+review-forest-quiet,"Forest walks, quiet nature and a slower pace instead of busy nightlife.",held_out,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.
+review-beach-active,Beaches with surfing and outdoor activities.,development,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.
+review-history-africa,"African precolonial history, archaeological sites and cultural heritage.",held_out,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.
+review-music-americas,"Local music traditions, historic streets and food in the Americas.",development,,,,,,Add multiple destination rows per query; leave grade blank until reviewed.

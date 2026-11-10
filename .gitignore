@@ -34,3 +34,6 @@ data/
 *.safetensors
 *.pt
 *.onnx
+
+# Interrupted evaluation/checkpoint writes
+*.partial

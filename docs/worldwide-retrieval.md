@@ -110,9 +110,18 @@ No free text is interpreted by an LLM. No Geoapify enrichment is automatic. The 
 
 Wikipedia/Wikidata fallbacks, multilingual corpora, full-catalog embedding operations at production scale, independent identity review, held-out relevance judgments, automatic approved shortlist enrichment, LLM/RAG answer generation, LangGraph, weather and itinerary generation are not part of this milestone.
 
+
+## Full-corpus measurement work (Milestone 4B, in progress)
+
+The versioned [full-corpus evaluation directory](../evaluation/retrieval/full-corpus-v1/README.md) preserves the earlier bootstrap results. Full BGE encoding is complete: 162,610 valid vectors cover all 9,026 matched destinations. E5 remains at its pre-existing 1,264 vectors; full E5 encoding and full-corpus quality experiments have not run in this step. The ungraded multi-system human-review pool is ready; quality evaluation remains pending manual judgments. That corpus step did not change product paths; the subsequent product integration adds separate discovery flows while preserving the Geoapify recommendation API.
+
 ## Resumable corpus embeddings
 
 Migration 0007 records the chunk content hash represented by each vector. `embedding-status --model <model> --revision <revision>` reports compatible cached coverage without loading weights. `embed` resumes by default, skips matching content/model revisions, commits bounded batches, and reports progress to stderr. `--force` replaces only the explicitly selected model/revision in atomic batches; it does not delete other model versions. `--batch-size`, `--inference-batch-size` and `--threads` bound/configure CPU execution. Changed content is checked again under row locks before storing a computed vector. Exceptions stop the run; completed batches survive.
+
+Encoding conventions follow the official [BGE model card](https://huggingface.co/BAAI/bge-small-en-v1.5) and [E5 model card](https://huggingface.co/intfloat/e5-small-v2): BGE adds its search instruction to queries only, E5 prefixes queries/passages separately, and both normalize embeddings. The full-evaluation tooling supports comparing dense, lexical, RRF and rank-interleaved deduplicated unions, plus top-two/top-three mean aggregation. Reranking experiments are bounded to 20/50 candidates, including the [lightweight TinyBERT baseline](https://www.sbert.net/docs/cross_encoder/pretrained_models.html). No scores are blended with the existing Geoapify recommendation score.
+
+The 48-query worksheet contains 24 legacy development qrels plus 24 new unjudged prompts. Human review is required for new relevance grades and prospective held-out evaluation. Previously exposed bootstrap qrels cannot be relabeled into an untouched test set. Full-corpus results and a recommended product default remain pending; no held-out success, reranker improvement or product readiness is claimed.
 
 ## Product integration
 

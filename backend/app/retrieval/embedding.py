@@ -9,19 +9,23 @@ from app.knowledge.models import KnowledgeChunk, KnowledgeEmbedding
 
 MODELS = ("BAAI/bge-small-en-v1.5", "intfloat/e5-small-v2")
 RERANKER = "cross-encoder/ms-marco-MiniLM-L6-v2"
+SMALL_RERANKER = "cross-encoder/ms-marco-TinyBERT-L2-v2"
 MODEL_REVISIONS = {
     "BAAI/bge-small-en-v1.5": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
     "intfloat/e5-small-v2": "ffb93f3bd4047442299a41ebb6fa998a38507c52",
     RERANKER: "233902d25c440f23af6f7d6e94d2946bac0bee0a",
+    SMALL_RERANKER: "81d1926f67cb8eee2c2be17ca9f793c7c3bd20cc",
 }
 
 
-def download_models(directory):
+def download_models(directory, include_small_reranker=False):
     from huggingface_hub import snapshot_download
     import json
     directory.mkdir(parents=True, exist_ok=True)
     registry = {}
     for name, revision in MODEL_REVISIONS.items():
+        if name == SMALL_RERANKER and not include_small_reranker:
+            continue
         started = time.perf_counter()
         path = snapshot_download(name, revision=revision, cache_dir=str(directory), token=False,
             allow_patterns=["*.json", "*.txt", "*.safetensors", "1_Pooling/*", "README.md", "LICENSE*"],

@@ -1,0 +1,51 @@
+{
+  "total_chunks": 162610,
+  "already_embedded": 14576,
+  "remaining": 148034,
+  "vector_payload_bytes": 22388736,
+  "model": "BAAI/bge-small-en-v1.5",
+  "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+  "newly_embedded": 10240,
+  "estimated_remaining": 137794,
+  "seconds": 2413.469904900063,
+  "state": "paused_by_user",
+  "batch_size": 512,
+  "inference_batch_size": 16,
+  "cpu_threads": 2,
+  "model_path_excluded": true,
+  "previous_committed_attempt": {
+    "total_chunks": 162610,
+    "already_embedded": 2800,
+    "remaining": 159810,
+    "vector_payload_bytes": 4300800,
+    "model": "BAAI/bge-small-en-v1.5",
+    "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+    "newly_embedded": 11776,
+    "seconds": 3248.873484799871,
+    "state": "interrupted_after_last_committed_batch",
+    "batch_size": 512,
+    "inference_batch_size": 16,
+    "cpu_threads": 2,
+    "model_path_excluded": true,
+    "previous_committed_attempt": {
+      "total_chunks": 162610,
+      "already_embedded": 1264,
+      "remaining": 161346,
+      "vector_payload_bytes": 1941504,
+      "model": "BAAI/bge-small-en-v1.5",
+      "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+      "newly_embedded": 1536,
+      "seconds": 534.6277460001875,
+      "state": "running",
+      "batch_size": 512,
+      "model_path_excluded": true
+    }
+  },
+  "paused_at_utc": "2026-11-08T17:44:17.919859+00:00",
+  "verified_database_coverage": {
+    "stored": 24816,
+    "valid": 24816,
+    "remaining": 137794
+  },
+  "automatic_e5_continuation_disabled": true
+}

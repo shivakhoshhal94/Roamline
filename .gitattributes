@@ -1,0 +1,4 @@
+# Preserve checksum-bearing research inputs exactly across platform checkouts.
+evaluation/retrieval/full-corpus-v1/human-review.csv -text whitespace=cr-at-eol
+evaluation/retrieval/full-corpus-v1/human-review-template.csv -text whitespace=cr-at-eol
+evaluation/retrieval/full-corpus-v1/queries-review.json -text whitespace=cr-at-eol

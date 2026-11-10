@@ -56,6 +56,7 @@ def main():
     download.add_argument("--date", required=True, help="Immutable official dump date YYYYMMDD")
     download.add_argument("--directory", type=Path, default=Path(".tmp/wikimedia"))
     models = commands.add_parser("download-models")
+    models.add_argument("--include-small-reranker", action="store_true")
     models.add_argument("--directory", type=Path, default=Path(".tmp/models"))
     ingest = commands.add_parser("ingest-wikivoyage")
     ingest.add_argument("--dump", type=Path, required=True)
@@ -80,7 +81,7 @@ def main():
     search.add_argument("--min-population", type=int, default=0)
     search.add_argument("--top-k", type=int, default=10)
     search.add_argument("--candidates", type=int, default=50)
-    search.add_argument("--mode", choices=["lexical", "dense", "hybrid"], default="hybrid")
+    search.add_argument("--mode", choices=["lexical", "dense", "hybrid", "union", "high_recall_union"], default="hybrid")
     search.add_argument("--reranker-path", type=Path)
     search.add_argument("--reranker-revision")
     args = parser.parse_args()
@@ -89,7 +90,7 @@ def main():
         return
     if args.command == "download-models":
         from app.retrieval.embedding import download_models
-        print(json.dumps(download_models(args.directory), indent=2))
+        print(json.dumps(download_models(args.directory, include_small_reranker=args.include_small_reranker), indent=2))
         return
     if args.command in {"embed", "search"} and not (args.command == "search" and args.mode == "lexical"):
         if not args.revision or not args.model_path:

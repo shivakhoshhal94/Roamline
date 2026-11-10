@@ -1,0 +1,11 @@
+{
+  "berlin_score": 57.2,
+  "category_records": 22,
+  "snapshot_count": 1,
+  "feature_count": 10,
+  "snapshot_timestamp": "2026-11-07T12:24:33.135569+00:00",
+  "mapping_version": "geoapify-interests-v1",
+  "normalization_version": "log-breadth-density-v1",
+  "unsupported_football_excluded": true,
+  "provider_calls": 0
+}
