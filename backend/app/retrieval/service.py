@@ -184,6 +184,16 @@ def retrieve(session, request, encoder=None, reranker=None, mode="hybrid", query
             lexical_rank=lexical_order.index(key)+1 if key in lexical else None,
             lexical_score=lexical[key]["score"] if key in lexical else None,
             fused_rank=len(results)+1, evidence=list(evidence.values())[:3], reranker_score=None)
+        if aggregation == "top2mean":
+            # Keep each channel's score inputs even when the API merges its citations.
+            base["aggregation_evidence"] = {
+                channel: [
+                    {"chunk_id": item["chunk_id"], "chunk_score": item["chunk_score"]}
+                    for item in ranking[key]["evidence"][:2]
+                ]
+                for channel, ranking in (("dense", dense), ("lexical", lexical))
+                if key in ranking
+            }
         results.append(base)
     retrieval_seconds = perf_counter()-started
     reranking_seconds = 0.0

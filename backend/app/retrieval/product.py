@@ -77,7 +77,7 @@ def context(profile, encoder):
 def discover(session, body, encoder):
     request = RetrievalRequest(query=query_for(body.profile), countries=body.countries,
         continents=body.continents, top_k=body.limit, candidates=50, rerank=False)
-    output = retrieve(session, request, encoder=encoder)
+    output = retrieve(session, request, encoder=encoder, mode="hybrid", aggregation="top2mean")
     for item in output['results']:
         channels = ['semantic retrieval'] if item['dense_rank'] else []
         if item['lexical_rank']: channels.append('text search')

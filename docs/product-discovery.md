@@ -13,8 +13,12 @@ in a React context until refresh and can be reused between both journeys.
 
 BGE-small-en-v1.5 revision `5c38ec7c405ec4b44b94cc5a9bb96e735b38267a`
 encodes a short query locally. PostgreSQL pgvector exact cosine and English full-text
-search retrieve passages; destination best-passage aggregation plus RRF produces
-worldwide shortlists. Focused exploration filters canonical destination ID in SQL
+search retrieve passages. Global discovery averages the two highest chunk scores
+per destination and channel, using the single score when only one chunk is
+available. Reciprocal rank fusion combines the channel rankings. This is the
+current production trial based on 24 judged development queries. Human held-out
+evaluation remains pending. CrossEncoder and HNSW are disabled for this path. Focused exploration
+filters canonical destination ID in SQL
 **before** retrieving each channel and fuses passages (k=60), not cities. Search
 limits are bounded; database statements time out after 30 seconds. Process-local
 locking serializes CPU inference/search to avoid concurrent CPU saturation. The
